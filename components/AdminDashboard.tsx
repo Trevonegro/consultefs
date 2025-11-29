@@ -131,20 +131,43 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
   };
 
   const handleDeleteItem = async (id: string, type: 'exam' | 'guide') => {
-      if(!selectedPatientCpf) return;
+      // Check if we have necessary data
+      if(!selectedPatientCpf || !activePatientData) return;
       
       const confirmDelete = window.confirm('ATENÇÃO: Tem certeza que deseja excluir permanentemente este item?');
       
       if(confirmDelete) {
-          setIsLoadingDetails(true); // Show loading to indicate processing
+          // 1. Snapshot previous state in case of error
+          const previousData = { ...activePatientData };
+
+          // 2. Optimistic Update: Manually remove the item from the current state to reflect INSTANTLY
+          setActivePatientData((current: any) => {
+              if(!current) return null;
+              
+              const updatedExams = type === 'exam' 
+                  ? current.exams.filter((item: any) => item.id !== id) 
+                  : current.exams;
+                  
+              const updatedGuides = type === 'guide' 
+                  ? current.guides.filter((item: any) => item.id !== id) 
+                  : current.guides;
+
+              return {
+                  ...current,
+                  exams: updatedExams,
+                  guides: updatedGuides
+              };
+          });
+
           try {
+            // 3. Perform actual background deletion
             await deleteItem(selectedPatientCpf, id, type);
-            // Force data refresh explicitly after deletion
-            setTick(t => t + 1); 
+            // No need to refresh/tick if successful, as the UI is already correct.
           } catch (error) {
             console.error("Erro ao excluir:", error);
-            alert("Houve um erro ao tentar excluir o item.");
-            setIsLoadingDetails(false);
+            alert("Houve um erro ao tentar excluir o item. As alterações serão revertidas.");
+            // 4. Revert on error
+            setActivePatientData(previousData);
           }
       }
   };
