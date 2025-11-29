@@ -258,7 +258,7 @@ export const getAllPatients = async (): Promise<Patient[]> => {
       om: p.om,
       precCp: p.prec_cp,
       holderName: p.holder_name,
-      birthDate: p.birth_date // Assumes column might exist if registered via form
+      birthDate: p.birth_date 
   }));
 };
 
@@ -347,8 +347,8 @@ export const registerPatient = async (patientData: Patient, password?: string) =
             om: patientData.om,
             prec_cp: patientData.precCp,
             holder_name: patientData.holderName,
-            email: patientData.email
-            // birth_date is handled if you add it to the schema, passing it here if schema allows
+            email: patientData.email,
+            birth_date: patientData.birthDate
         });
 
         if (error) {
