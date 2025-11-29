@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getAllPatients, getPatientDetails, updateExamStatus, updateGuideStatus, addExamToPatient, addGuideToPatient, getLabExamsDatabase, getGlobalAnnouncement, setGlobalAnnouncement, sendPatientNotification, registerPatient, deleteItem, editItem } from '../services/mockData';
+import { getAllPatients, getPatientDetails, updateExamStatus, updateGuideStatus, updateDentalStatus, addExamToPatient, addGuideToPatient, getLabExamsDatabase, getGuideProceduresDatabase, getGlobalAnnouncement, setGlobalAnnouncement, sendPatientNotification, registerPatient, deleteItem, editItem, getDentistsDatabase } from '../services/mockData';
 import { Status, Role, PatientType, MilitaryOrganization, Patient } from '../types';
-import { Search, User, Activity, FileText, Check, Truck, Clock, RefreshCw, Plus, X, ChevronRight, Users, ClipboardList, Paperclip, Megaphone, Send, MessageSquare, Trash2, Edit, Save, UserPlus, Shield } from 'lucide-react';
+import { Search, User, Activity, FileText, Check, Truck, Clock, RefreshCw, Plus, X, ChevronRight, Users, ClipboardList, Paperclip, Megaphone, Send, MessageSquare, Trash2, Edit, Save, UserPlus, Shield, Smile, Calendar } from 'lucide-react';
 
 interface AdminDashboardProps {
   role: Role;
@@ -28,7 +28,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
   const [newItemDeadline, setNewItemDeadline] = useState('');
 
   // Edit Item State
-  const [editingItem, setEditingItem] = useState<{id: string, type: 'exam' | 'guide', data: any} | null>(null);
+  const [editingItem, setEditingItem] = useState<{id: string, type: 'exam' | 'guide' | 'dental', data: any} | null>(null);
 
   // Patient Registration State
   const [isRegisteringPatient, setIsRegisteringPatient] = useState(false);
@@ -45,8 +45,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
   // Force re-render after update
   const [tick, setTick] = useState(0); 
   
-  // Get database of exams
+  // Get database of exams/guides
   const examDatabase = getLabExamsDatabase();
+  const guideProceduresDatabase = getGuideProceduresDatabase();
+  const dentistsDatabase = getDentistsDatabase();
   const allPatientsList = getAllPatients();
 
   // Load initial global message
@@ -61,20 +63,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
 
   const activePatientData = selectedPatientCpf ? getPatientDetails(selectedPatientCpf) : null;
 
-  // Stats calculation (Mock logic based on filtered view or total)
+  // Stats calculation
   const stats = {
       totalPatients: allPatientsList.length,
       activeItems: 12, // Placeholder
       completedItems: 45 // Placeholder
   };
 
-  const handleStatusChange = (type: 'exam' | 'guide', id: string, status: Status) => {
+  const handleStatusChange = (type: 'exam' | 'guide' | 'dental', id: string, status: Status) => {
     if (!selectedPatientCpf) return;
     
     if (type === 'exam') {
       updateExamStatus(selectedPatientCpf, id, status);
-    } else {
+    } else if (type === 'guide') {
       updateGuideStatus(selectedPatientCpf, id, status);
+    } else if (type === 'dental') {
+      updateDentalStatus(selectedPatientCpf, id, status);
     }
     setTick(t => t + 1); // Refresh UI
   };
@@ -98,7 +102,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
     setTick(t => t + 1);
   };
 
-  const handleDeleteItem = (id: string, type: 'exam' | 'guide') => {
+  const handleDeleteItem = (id: string, type: 'exam' | 'guide' | 'dental') => {
       if(!selectedPatientCpf) return;
       if(window.confirm('Tem certeza que deseja excluir este item?')) {
           deleteItem(selectedPatientCpf, id, type);
@@ -106,7 +110,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       }
   };
 
-  const handleStartEdit = (item: any, type: 'exam' | 'guide') => {
+  const handleStartEdit = (item: any, type: 'exam' | 'guide' | 'dental') => {
       setEditingItem({
           id: item.id,
           type,
@@ -161,6 +165,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       }
   };
 
+  const getRoleIcon = () => {
+    switch(role) {
+        case 'dentist_manager': return Smile;
+        case 'exam_manager': return Activity;
+        case 'guide_manager': return FileText;
+        default: return User;
+    }
+  }
+
+  const getRoleLabel = () => {
+      switch(role) {
+          case 'dentist_manager': return 'Odontologia';
+          case 'exam_manager': return 'Exames';
+          case 'guide_manager': return 'Guias';
+          default: return 'Geral';
+      }
+  }
+
+  const RoleIcon = getRoleIcon();
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 flex flex-col min-h-[calc(100vh-5rem)]">
       
@@ -168,18 +192,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       {!selectedPatientCpf && (
         <div className="space-y-6 animate-fade-in">
              {/* Global Announcement Card */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+            <div className="bg-white dark:bg-military-900 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-military-700 transition-colors">
                 <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-3">
-                        <div className="bg-amber-100 p-2 rounded-lg text-amber-600">
+                        <div className="bg-amber-100 dark:bg-amber-900/40 p-2 rounded-lg text-amber-600 dark:text-amber-500">
                             <Megaphone className="w-5 h-5" />
                         </div>
-                        <h3 className="font-bold text-slate-800">Comunicação Institucional (Aviso Geral)</h3>
+                        <h3 className="font-bold text-gray-800 dark:text-military-100">Comunicação Institucional (Aviso Geral)</h3>
                     </div>
                     {!isEditingGlobal && (
                         <button 
                             onClick={() => setIsEditingGlobal(true)}
-                            className="text-sm text-slate-500 hover:text-slate-800 underline"
+                            className="text-sm text-gray-500 dark:text-military-300 hover:text-gray-900 dark:hover:text-military-100 underline"
                         >
                             Editar Aviso
                         </button>
@@ -189,7 +213,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                 {isEditingGlobal ? (
                     <div className="space-y-3">
                         <textarea
-                            className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500 outline-none"
+                            className="w-full border border-gray-200 dark:border-military-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-600 outline-none bg-gray-50 dark:bg-military-950 text-gray-800 dark:text-military-100"
                             rows={3}
                             placeholder="Digite o aviso que aparecerá para todos os pacientes..."
                             value={globalMsg}
@@ -198,20 +222,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                         <div className="flex gap-2 justify-end">
                             <button 
                                 onClick={() => setIsEditingGlobal(false)}
-                                className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded-lg"
+                                className="px-4 py-2 text-sm text-gray-500 dark:text-military-300 hover:bg-gray-100 dark:hover:bg-military-700 rounded-lg"
                             >
                                 Cancelar
                             </button>
                             <button 
                                 onClick={handleUpdateGlobal}
-                                className="px-4 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium"
+                                className="px-4 py-2 text-sm bg-amber-600 hover:bg-amber-500 dark:bg-amber-700 dark:hover:bg-amber-600 text-white rounded-lg font-medium"
                             >
                                 Salvar Aviso
                             </button>
                         </div>
                     </div>
                 ) : (
-                    <div className={`p-4 rounded-xl text-sm ${globalMsg ? 'bg-amber-50 text-amber-900 border border-amber-100' : 'bg-gray-50 text-gray-400 italic'}`}>
+                    <div className={`p-4 rounded-xl text-sm ${globalMsg ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-900/50' : 'bg-gray-50 dark:bg-military-800 text-gray-500 dark:text-military-400 italic'}`}>
                         {globalMsg || "Nenhum aviso geral configurado no momento."}
                     </div>
                 )}
@@ -222,19 +246,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                     icon={Users} 
                     label="Total de Pacientes" 
                     value={stats.totalPatients.toString()} 
-                    color="bg-slate-800" 
+                    color="bg-gray-800 dark:bg-military-600" 
                 />
                 <StatCard 
                     icon={RefreshCw} 
                     label="Itens em Processamento" 
                     value="12" 
-                    color="bg-amber-600" 
+                    color="bg-amber-600 dark:bg-amber-700" 
                 />
                 <StatCard 
                     icon={Check} 
                     label="Prontos Hoje" 
                     value="8" 
-                    color="bg-emerald-600" 
+                    color="bg-emerald-600 dark:bg-emerald-700" 
                 />
             </div>
         </div>
@@ -244,15 +268,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
         
         {/* Search & Selection View */}
         {!activePatientData ? (
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+            <div className="bg-white dark:bg-military-900 p-8 rounded-2xl shadow-sm border border-gray-200 dark:border-military-700 transition-colors">
                 <div className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="text-center md:text-left">
-                        <h2 className="text-2xl font-bold text-slate-800">Diretório de Pacientes</h2>
-                        <p className="text-slate-500 mt-1">Localize um paciente ou cadastre um novo.</p>
+                        <h2 className="text-2xl font-bold text-gray-800 dark:text-military-100">Diretório de Pacientes</h2>
+                        <p className="text-gray-500 dark:text-military-300 mt-1">Localize um paciente ou cadastre um novo.</p>
                     </div>
                     <button 
                         onClick={() => setIsRegisteringPatient(true)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-all flex items-center gap-2"
+                        className="bg-emerald-600 hover:bg-emerald-500 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-all flex items-center gap-2"
                     >
                         <UserPlus className="w-5 h-5" />
                         Novo Paciente
@@ -261,12 +285,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
 
                 <div className="relative max-w-2xl mx-auto md:mx-0">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <Search className="h-5 w-5 text-gray-400" />
+                        <Search className="h-5 w-5 text-gray-400 dark:text-military-400" />
                     </div>
                     <input
                         type="text"
                         placeholder="Buscar por Nome ou CPF..."
-                        className="w-full pl-11 pr-4 py-4 border border-gray-200 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-slate-500 outline-none transition-shadow shadow-sm text-gray-700 bg-gray-50 focus:bg-white"
+                        className="w-full pl-11 pr-4 py-4 border border-gray-200 dark:border-military-700 rounded-xl focus:ring-2 focus:ring-gray-300 dark:focus:ring-military-600 focus:border-gray-400 dark:focus:border-military-600 outline-none transition-shadow shadow-sm text-gray-800 dark:text-military-100 bg-gray-50 dark:bg-military-950 focus:bg-white dark:focus:bg-military-950"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -279,15 +303,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                 <button 
                                     key={p.cpf}
                                     onClick={() => setSelectedPatientCpf(p.cpf)}
-                                    className="group bg-white border border-gray-200 p-5 rounded-xl hover:border-slate-400 hover:shadow-md transition-all text-left flex items-start gap-4"
+                                    className="group bg-gray-50 dark:bg-military-700/50 border border-gray-200 dark:border-military-600 p-5 rounded-xl hover:border-gray-400 dark:hover:border-military-400 hover:shadow-md transition-all text-left flex items-start gap-4"
                                 >
-                                    <div className="bg-slate-100 p-3 rounded-full text-slate-600 group-hover:bg-slate-800 group-hover:text-white transition-colors">
+                                    <div className="bg-gray-200 dark:bg-military-600 p-3 rounded-full text-gray-500 dark:text-military-300 group-hover:bg-gray-300 dark:group-hover:bg-military-500 group-hover:text-gray-700 dark:group-hover:text-military-100 transition-colors">
                                         <User className="w-6 h-6" />
                                     </div>
                                     <div>
-                                        <h3 className="font-semibold text-slate-800 group-hover:text-slate-900">{p.name}</h3>
-                                        <p className="text-sm text-slate-500 font-mono mt-0.5">{p.cpf}</p>
-                                        <div className="flex items-center gap-1 mt-3 text-xs font-medium text-slate-400 group-hover:text-slate-600">
+                                        <h3 className="font-semibold text-gray-800 dark:text-military-100 group-hover:text-black dark:group-hover:text-white">{p.name}</h3>
+                                        <p className="text-sm text-gray-500 dark:text-military-400 font-mono mt-0.5">{p.cpf}</p>
+                                        <div className="flex items-center gap-1 mt-3 text-xs font-medium text-gray-400 dark:text-military-400 group-hover:text-gray-600 dark:group-hover:text-military-300">
                                             Acessar Prontuário <ChevronRight className="w-3 h-3" />
                                         </div>
                                     </div>
@@ -296,11 +320,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                         </div>
                     ) : (
                         <div className="text-center py-12">
-                            <div className="bg-gray-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <Search className="w-8 h-8 text-gray-300" />
+                            <div className="bg-gray-100 dark:bg-military-700 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <Search className="w-8 h-8 text-gray-400 dark:text-military-400" />
                             </div>
-                            <p className="text-gray-500 font-medium">Nenhum paciente encontrado.</p>
-                            <p className="text-sm text-gray-400">Tente buscar por outro nome ou CPF.</p>
+                            <p className="text-gray-500 dark:text-military-400 font-medium">Nenhum paciente encontrado.</p>
+                            <p className="text-sm text-gray-400 dark:text-military-500">Tente buscar por outro nome ou CPF.</p>
                         </div>
                     )}
                 </div>
@@ -310,27 +334,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
             <div className="animate-in slide-in-from-right-4 duration-300">
                 <button 
                     onClick={() => setSelectedPatientCpf(null)} 
-                    className="mb-4 flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition-colors"
+                    className="mb-4 flex items-center gap-2 text-sm text-gray-500 dark:text-military-300 hover:text-gray-900 dark:hover:text-military-100 transition-colors"
                 >
                     <ChevronRight className="w-4 h-4 rotate-180" /> Voltar para lista
                 </button>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="bg-white dark:bg-military-900 rounded-2xl shadow-sm border border-gray-200 dark:border-military-700 overflow-hidden transition-colors">
                     {/* Patient Header */}
-                    <div className="bg-slate-50 border-b border-gray-200 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="bg-gray-50 dark:bg-military-800 border-b border-gray-200 dark:border-military-700 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="flex items-center gap-5">
-                            <div className="w-16 h-16 bg-slate-200 rounded-full flex items-center justify-center text-slate-600 shadow-inner">
+                            <div className="w-16 h-16 bg-gray-200 dark:bg-military-700 rounded-full flex items-center justify-center text-gray-500 dark:text-military-200 shadow-inner">
                                 <User className="w-8 h-8" />
                             </div>
                             <div>
-                                <h1 className="text-2xl font-bold text-slate-800">{activePatientData.profile.name}</h1>
-                                <div className="flex gap-4 text-sm text-slate-500 mt-1">
+                                <h1 className="text-2xl font-bold text-gray-800 dark:text-military-100">{activePatientData.profile.name}</h1>
+                                <div className="flex gap-4 text-sm text-gray-500 dark:text-military-300 mt-1">
                                     <span className="font-mono">{activePatientData.profile.cpf}</span>
                                     {activePatientData.profile.om && (
-                                        <span className="bg-slate-200 px-2 rounded text-xs font-bold flex items-center">{activePatientData.profile.om}</span>
+                                        <span className="bg-gray-200 dark:bg-military-700 px-2 rounded text-xs font-bold flex items-center">{activePatientData.profile.om}</span>
                                     )}
                                     {activePatientData.profile.type && (
-                                        <span className={`px-2 rounded text-xs font-bold flex items-center ${activePatientData.profile.type === 'TITULAR' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                                        <span className={`px-2 rounded text-xs font-bold flex items-center ${activePatientData.profile.type === 'TITULAR' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' : 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'}`}>
                                             {activePatientData.profile.type}
                                         </span>
                                     )}
@@ -340,60 +364,62 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                         <div className="flex gap-3">
                             <button 
                                 onClick={() => setIsMessaging(true)}
-                                className="bg-white border border-gray-300 hover:bg-gray-50 text-slate-700 px-4 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-all flex items-center gap-2"
+                                className="bg-white dark:bg-military-700 border border-gray-300 dark:border-military-600 hover:bg-gray-50 dark:hover:bg-military-600 text-gray-700 dark:text-military-100 px-4 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-all flex items-center gap-2"
                                 title="Enviar Mensagem ao Paciente"
                             >
                                 <MessageSquare className="w-4 h-4" />
                                 Mensagem
                             </button>
-                            <button 
-                                onClick={() => setIsAdding(true)}
-                                className="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-all flex items-center gap-2"
-                            >
-                                <Plus className="w-4 h-4" />
-                                {role === 'exam_manager' ? 'Novo Exame' : 'Nova Guia'}
-                            </button>
+                            {role !== 'dentist_manager' && (
+                                <button 
+                                    onClick={() => setIsAdding(true)}
+                                    className="bg-gray-900 dark:bg-military-100 hover:bg-gray-800 dark:hover:bg-white text-white dark:text-military-950 px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-all flex items-center gap-2"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    {role === 'exam_manager' ? 'Novo Exame' : 'Nova Guia'}
+                                </button>
+                            )}
                         </div>
                     </div>
 
                     {/* Messaging Modal */}
                     {isMessaging && (
-                         <div className="bg-blue-50 border-b border-blue-100 p-6 animate-in slide-in-from-top-2">
-                             <div className="max-w-3xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-blue-100">
-                                <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
-                                    <h4 className="font-bold text-slate-800 flex items-center gap-2">
-                                        <MessageSquare className="w-5 h-5 text-blue-500" />
+                         <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-900/30 p-6 animate-in slide-in-from-top-2">
+                             <div className="max-w-3xl mx-auto bg-white dark:bg-military-800 p-6 rounded-xl shadow-sm border border-blue-100 dark:border-blue-900/30">
+                                <div className="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-military-700 pb-2">
+                                    <h4 className="font-bold text-gray-800 dark:text-military-100 flex items-center gap-2">
+                                        <MessageSquare className="w-5 h-5 text-blue-500 dark:text-blue-400" />
                                         Enviar Mensagem para {activePatientData.profile.name}
                                     </h4>
-                                    <button onClick={() => setIsMessaging(false)} className="text-gray-400 hover:text-gray-600">
+                                    <button onClick={() => setIsMessaging(false)} className="text-gray-400 dark:text-military-300 hover:text-gray-600 dark:hover:text-military-100">
                                         <X className="w-5 h-5" />
                                     </button>
                                 </div>
                                 <form onSubmit={handleSendMessage} className="space-y-4">
                                     <div>
-                                        <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">Título</label>
+                                        <label className="text-xs font-semibold text-gray-500 dark:text-military-400 uppercase block mb-1">Título</label>
                                         <input 
                                             required
                                             type="text" 
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                            className="w-full px-3 py-2 bg-gray-50 dark:bg-military-950 border border-gray-300 dark:border-military-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none text-gray-800 dark:text-military-100"
                                             value={msgTitle}
                                             onChange={e => setMsgTitle(e.target.value)}
                                             placeholder="Ex: Pendência de Documento"
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">Mensagem</label>
+                                        <label className="text-xs font-semibold text-gray-500 dark:text-military-400 uppercase block mb-1">Mensagem</label>
                                         <textarea 
                                             required
                                             rows={3}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                            className="w-full px-3 py-2 bg-gray-50 dark:bg-military-950 border border-gray-300 dark:border-military-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none text-gray-800 dark:text-military-100"
                                             value={msgContent}
                                             onChange={e => setMsgContent(e.target.value)}
                                             placeholder="Digite a mensagem para o paciente..."
                                         />
                                     </div>
                                     <div className="flex justify-end pt-2">
-                                        <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                                        <button type="submit" className="bg-blue-600 dark:bg-blue-700 hover:bg-blue-500 dark:hover:bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
                                             Enviar <Send className="w-4 h-4" />
                                         </button>
                                     </div>
@@ -403,31 +429,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                     )}
 
                     {/* Add Item Form Area */}
-                    {isAdding && (
-                        <div className="bg-slate-50 border-b border-gray-200 p-6 animate-in slide-in-from-top-2">
-                            <div className="max-w-3xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                                <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
-                                    <h4 className="font-bold text-slate-800 flex items-center gap-2">
-                                        <ClipboardList className="w-5 h-5 text-slate-500" />
+                    {isAdding && (role === 'exam_manager' || role === 'guide_manager') && (
+                        <div className="bg-gray-50 dark:bg-military-800 border-b border-gray-200 dark:border-military-700 p-6 animate-in slide-in-from-top-2">
+                            <div className="max-w-3xl mx-auto bg-white dark:bg-military-900 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-military-700">
+                                <div className="flex justify-between items-center mb-4 border-b border-gray-100 dark:border-military-700 pb-2">
+                                    <h4 className="font-bold text-gray-800 dark:text-military-100 flex items-center gap-2">
+                                        <ClipboardList className="w-5 h-5 text-gray-400 dark:text-military-300" />
                                         Cadastrar {role === 'exam_manager' ? 'Exame' : 'Guia'}
                                     </h4>
-                                    <button onClick={() => setIsAdding(false)} className="text-gray-400 hover:text-gray-600">
+                                    <button onClick={() => setIsAdding(false)} className="text-gray-400 dark:text-military-300 hover:text-gray-600 dark:hover:text-military-100">
                                         <X className="w-5 h-5" />
                                     </button>
                                 </div>
                                 <form onSubmit={handleAddItem} className="space-y-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-gray-500 uppercase">
-                                                {role === 'exam_manager' ? 'Nome do Exame' : 'Especialidade'}
+                                            <label className="text-xs font-semibold text-gray-500 dark:text-military-400 uppercase">
+                                                {role === 'exam_manager' ? 'Nome do Exame' : 'Especialidade / Procedimento'}
                                             </label>
-                                            {role === 'exam_manager' ? (
+                                            
+                                            {/* Datalist for Exams */}
+                                            {role === 'exam_manager' && (
                                                 <div className="relative">
                                                      <input 
                                                         required
                                                         list="exam-options"
                                                         type="text" 
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none"
+                                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-military-800 border border-gray-300 dark:border-military-600 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 dark:focus:ring-military-500 outline-none text-gray-800 dark:text-military-100"
                                                         value={newItemName}
                                                         onChange={e => setNewItemName(e.target.value)}
                                                     />
@@ -437,25 +465,36 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                                         ))}
                                                     </datalist>
                                                 </div>
-                                            ) : (
-                                                <input 
-                                                    required
-                                                    type="text" 
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none"
-                                                    value={newItemName}
-                                                    onChange={e => setNewItemName(e.target.value)}
-                                                />
+                                            )}
+
+                                            {/* Datalist for Guides (Procedure List) */}
+                                            {role === 'guide_manager' && (
+                                                <div className="relative">
+                                                     <input 
+                                                        required
+                                                        list="guide-options"
+                                                        type="text" 
+                                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-military-800 border border-gray-300 dark:border-military-600 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 dark:focus:ring-military-500 outline-none text-gray-800 dark:text-military-100"
+                                                        value={newItemName}
+                                                        onChange={e => setNewItemName(e.target.value)}
+                                                    />
+                                                    <datalist id="guide-options">
+                                                        {guideProceduresDatabase.map((proc, index) => (
+                                                            <option key={index} value={proc} />
+                                                        ))}
+                                                    </datalist>
+                                                </div>
                                             )}
                                         </div>
                                         <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-gray-500 uppercase">
+                                            <label className="text-xs font-semibold text-gray-500 dark:text-military-400 uppercase">
                                                 {role === 'exam_manager' ? 'Laboratório Realizado' : 'Dia do Cadastro'}
                                             </label>
                                             {role === 'guide_manager' ? (
                                                 <input 
                                                     required
                                                     type="date" 
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none"
+                                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-military-800 border border-gray-300 dark:border-military-600 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 dark:focus:ring-military-500 outline-none text-gray-800 dark:text-military-100 dark:[color-scheme:dark]"
                                                     value={newItemDoctor}
                                                     onChange={e => setNewItemDoctor(e.target.value)}
                                                 />
@@ -463,7 +502,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                                 <input 
                                                     required
                                                     type="text" 
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none"
+                                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-military-800 border border-gray-300 dark:border-military-600 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 dark:focus:ring-military-500 outline-none text-gray-800 dark:text-military-100"
                                                     value={newItemDoctor}
                                                     onChange={e => setNewItemDoctor(e.target.value)}
                                                 />
@@ -471,12 +510,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                         </div>
                                         {role === 'guide_manager' && (
                                              <div className="space-y-1">
-                                                <label className="text-xs font-semibold text-gray-500 uppercase">Prazo Estimado</label>
+                                                <label className="text-xs font-semibold text-gray-500 dark:text-military-400 uppercase">Prazo Estimado</label>
                                                 <input 
                                                     required
                                                     type="text" 
                                                     placeholder="AAAA-MM-DD"
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none"
+                                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-military-800 border border-gray-300 dark:border-military-600 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 dark:focus:ring-military-500 outline-none text-gray-800 dark:text-military-100"
                                                     value={newItemDeadline}
                                                     onChange={e => setNewItemDeadline(e.target.value)}
                                                 />
@@ -484,7 +523,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                         )}
                                     </div>
                                     <div className="pt-2 flex justify-end">
-                                        <button type="submit" className="bg-red-700 hover:bg-red-800 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors">
+                                        <button type="submit" className="bg-gray-800 dark:bg-military-700 hover:bg-gray-700 dark:hover:bg-military-600 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors">
                                             Confirmar Cadastro
                                         </button>
                                     </div>
@@ -495,44 +534,47 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
 
                      {/* Edit Item Modal */}
                      {editingItem && (
-                        <div className="bg-amber-50 border-b border-amber-200 p-6 animate-in slide-in-from-top-2">
-                             <div className="max-w-3xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-amber-200">
+                        <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-900/40 p-6 animate-in slide-in-from-top-2">
+                             <div className="max-w-3xl mx-auto bg-white dark:bg-military-900 p-6 rounded-xl shadow-sm border border-amber-200 dark:border-amber-900/40">
                                 <div className="flex justify-between items-center mb-4">
-                                    <h4 className="font-bold text-slate-800">Editar {editingItem.type === 'exam' ? 'Exame' : 'Guia'}</h4>
-                                    <button onClick={() => setEditingItem(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+                                    <h4 className="font-bold text-gray-800 dark:text-military-100">Editar {editingItem.type === 'exam' ? 'Exame' : editingItem.type === 'guide' ? 'Guia' : 'Agendamento'}</h4>
+                                    <button onClick={() => setEditingItem(null)} className="text-gray-400 dark:text-military-300 hover:text-gray-600 dark:hover:text-military-100"><X className="w-5 h-5" /></button>
                                 </div>
                                 <div className="space-y-4">
                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {/* Name / Procedure Field */}
                                         <div>
-                                            <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">
-                                                {editingItem.type === 'exam' ? 'Nome do Exame' : 'Especialidade'}
+                                            <label className="text-xs font-semibold text-gray-500 dark:text-military-400 uppercase block mb-1">
+                                                {editingItem.type === 'exam' ? 'Nome do Exame' : editingItem.type === 'guide' ? 'Especialidade' : 'Procedimento'}
                                             </label>
                                             <input 
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                                                value={editingItem.type === 'exam' ? editingItem.data.name : editingItem.data.specialty}
+                                                className="w-full px-3 py-2 bg-gray-50 dark:bg-military-950 border border-gray-300 dark:border-military-600 rounded-lg text-sm text-gray-800 dark:text-military-100"
+                                                value={editingItem.type === 'dental' ? editingItem.data.procedure : (editingItem.type === 'exam' ? editingItem.data.name : editingItem.data.specialty)}
                                                 onChange={e => setEditingItem({
                                                     ...editingItem, 
-                                                    data: { ...editingItem.data, [editingItem.type === 'exam' ? 'name' : 'specialty']: e.target.value }
+                                                    data: { ...editingItem.data, [editingItem.type === 'dental' ? 'procedure' : (editingItem.type === 'exam' ? 'name' : 'specialty')]: e.target.value }
                                                 })}
                                             />
                                         </div>
+
+                                        {/* Date / Doctor Field */}
                                         <div>
-                                             <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">
-                                                {editingItem.type === 'exam' ? 'Laboratório' : 'Data do Cadastro'}
+                                             <label className="text-xs font-semibold text-gray-500 dark:text-military-400 uppercase block mb-1">
+                                                {editingItem.type === 'exam' ? 'Laboratório' : editingItem.type === 'guide' ? 'Data do Cadastro' : 'Data'}
                                              </label>
-                                             {editingItem.type === 'guide' ? (
+                                             {editingItem.type === 'guide' || editingItem.type === 'dental' ? (
                                                   <input 
                                                     type="date"
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                                                    value={editingItem.data.dateRequested} // Assuming we edit the date here
+                                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-military-950 border border-gray-300 dark:border-military-600 rounded-lg text-sm text-gray-800 dark:text-military-100 dark:[color-scheme:dark]"
+                                                    value={editingItem.type === 'dental' ? editingItem.data.date : editingItem.data.dateRequested}
                                                     onChange={e => setEditingItem({
                                                         ...editingItem,
-                                                        data: { ...editingItem.data, dateRequested: e.target.value }
+                                                        data: { ...editingItem.data, [editingItem.type === 'dental' ? 'date' : 'dateRequested']: e.target.value }
                                                     })}
                                                 />
                                              ) : (
                                                 <input 
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                                    className="w-full px-3 py-2 bg-gray-50 dark:bg-military-950 border border-gray-300 dark:border-military-600 rounded-lg text-sm text-gray-800 dark:text-military-100"
                                                     value={editingItem.data.doctor}
                                                     onChange={e => setEditingItem({
                                                         ...editingItem, 
@@ -541,10 +583,44 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                                 />
                                              )}
                                         </div>
+
+                                        {/* Extra field for Dental Time and Dentist Name */}
+                                        {editingItem.type === 'dental' && (
+                                            <>
+                                                <div>
+                                                    <label className="text-xs font-semibold text-gray-500 dark:text-military-400 uppercase block mb-1">Horário</label>
+                                                    <input 
+                                                        type="time"
+                                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-military-950 border border-gray-300 dark:border-military-600 rounded-lg text-sm text-gray-800 dark:text-military-100 dark:[color-scheme:dark]"
+                                                        value={editingItem.data.time}
+                                                        onChange={e => setEditingItem({
+                                                            ...editingItem,
+                                                            data: { ...editingItem.data, time: e.target.value }
+                                                        })}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-semibold text-gray-500 dark:text-military-400 uppercase block mb-1">Dentista</label>
+                                                    <input 
+                                                        list="dentist-options-edit"
+                                                        type="text"
+                                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-military-950 border border-gray-300 dark:border-military-600 rounded-lg text-sm text-gray-800 dark:text-military-100"
+                                                        value={editingItem.data.dentist || ''}
+                                                        onChange={e => setEditingItem({
+                                                            ...editingItem,
+                                                            data: { ...editingItem.data, dentist: e.target.value }
+                                                        })}
+                                                    />
+                                                    <datalist id="dentist-options-edit">
+                                                        {dentistsDatabase.map((d, i) => <option key={i} value={d} />)}
+                                                    </datalist>
+                                                </div>
+                                            </>
+                                        )}
                                      </div>
                                      <div className="flex justify-end gap-2 pt-2">
-                                         <button onClick={() => setEditingItem(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">Cancelar</button>
-                                         <button onClick={handleSaveEdit} className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm flex items-center gap-2">
+                                         <button onClick={() => setEditingItem(null)} className="px-4 py-2 text-gray-500 dark:text-military-300 hover:bg-gray-100 dark:hover:bg-military-700 rounded-lg text-sm">Cancelar</button>
+                                         <button onClick={handleSaveEdit} className="px-4 py-2 bg-amber-600 hover:bg-amber-500 dark:bg-amber-700 dark:hover:bg-amber-600 text-white rounded-lg text-sm flex items-center gap-2">
                                              <Save className="w-4 h-4" /> Salvar Alterações
                                          </button>
                                      </div>
@@ -555,9 +631,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
 
                     {/* Items List */}
                     <div className="p-6">
-                        <div className="flex items-center gap-2 mb-4 text-slate-800 font-semibold">
-                            {role === 'exam_manager' ? <Activity className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
-                            <h3>Histórico de {role === 'exam_manager' ? 'Exames' : 'Guias'}</h3>
+                        <div className="flex items-center gap-2 mb-4 text-gray-800 dark:text-military-100 font-semibold">
+                            <RoleIcon className="w-5 h-5" />
+                            <h3>Histórico de {getRoleLabel()}</h3>
                         </div>
                         
                         <div className="space-y-3">
@@ -566,6 +642,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                             )}
                             {role === 'guide_manager' && activePatientData.guides.length === 0 && (
                                 <EmptyState message="Nenhuma guia registrada para este paciente." />
+                            )}
+                            {role === 'dentist_manager' && activePatientData.dentalAppointments.length === 0 && (
+                                <EmptyState message="Nenhum agendamento odontológico registrado." />
                             )}
 
                             {role === 'exam_manager' && activePatientData.exams.map(exam => (
@@ -595,6 +674,65 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                     onEdit={() => handleStartEdit(guide, 'guide')}
                                 />
                             ))}
+
+                            {role === 'dentist_manager' && activePatientData.dentalAppointments.map(appt => (
+                                <div key={appt.id} className="bg-white dark:bg-military-900 border border-gray-200 dark:border-military-700 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-shadow hover:shadow-sm">
+                                    <div className="flex-grow">
+                                        <div className="flex items-center gap-2">
+                                            <h4 className="font-bold text-gray-800 dark:text-military-100">{appt.procedure}</h4>
+                                            {/* Minimal status badge */}
+                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border 
+                                                ${appt.status === Status.READY ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900' : 
+                                                  appt.status === Status.PENDING ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-500 border-amber-200 dark:border-amber-900' :
+                                                  appt.status === Status.DELIVERED ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900' :
+                                                  'bg-gray-100 dark:bg-military-800 text-gray-500 dark:text-military-400'}`}>
+                                                {appt.status === Status.READY ? 'Confirmado' : 
+                                                 appt.status === Status.PENDING ? 'Pendente' : 
+                                                 appt.status === Status.DELIVERED ? 'Realizado' : appt.status}
+                                            </span>
+                                        </div>
+                                        {appt.dentist && (
+                                            <p className="text-xs text-gray-500 dark:text-military-300 flex items-center gap-1 mt-0.5">
+                                                <User className="w-3 h-3" /> {appt.dentist}
+                                            </p>
+                                        )}
+                                        <p className="text-sm text-gray-500 dark:text-military-400 mt-1 flex items-center gap-2">
+                                            <Calendar className="w-3 h-3" /> {appt.date} às {appt.time}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button 
+                                            onClick={() => handleStatusChange('dental', appt.id, Status.READY)}
+                                            className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-800/50 rounded text-xs font-bold border border-emerald-200 dark:border-emerald-900"
+                                        >
+                                            Confirmar
+                                        </button>
+                                        <button 
+                                            onClick={() => handleStatusChange('dental', appt.id, Status.DELIVERED)}
+                                            className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/50 rounded text-xs font-bold border border-blue-200 dark:border-blue-900"
+                                        >
+                                            Realizado
+                                        </button>
+                                        
+                                        <div className="flex items-center gap-1 pl-2 border-l border-gray-200 dark:border-military-700 ml-2">
+                                            <button 
+                                                onClick={() => handleStartEdit(appt, 'dental')}
+                                                className="p-1.5 text-gray-400 dark:text-military-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 hover:text-amber-600 dark:hover:text-amber-500 rounded"
+                                                title="Editar"
+                                            >
+                                                <Edit className="w-4 h-4" />
+                                            </button>
+                                            <button 
+                                                onClick={() => handleDeleteItem(appt.id, 'dental')}
+                                                className="p-1.5 text-red-400 dark:text-red-900 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-600 dark:hover:text-red-500 rounded"
+                                                title="Cancelar/Excluir"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -604,57 +742,57 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
 
       {/* Patient Registration Modal */}
       {isRegisteringPatient && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-              <div className="bg-white rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl">
-                  <div className="bg-slate-50 p-6 border-b border-gray-200 flex justify-between items-center">
-                      <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                          <UserPlus className="w-6 h-6 text-emerald-600" />
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+              <div className="bg-white dark:bg-military-900 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl border border-gray-200 dark:border-military-700 transition-colors">
+                  <div className="bg-gray-50 dark:bg-military-800 p-6 border-b border-gray-200 dark:border-military-700 flex justify-between items-center">
+                      <h3 className="text-xl font-bold text-gray-800 dark:text-military-100 flex items-center gap-2">
+                          <UserPlus className="w-6 h-6 text-emerald-600 dark:text-emerald-500" />
                           Cadastro de Paciente
                       </h3>
-                      <button onClick={() => setIsRegisteringPatient(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                      <button onClick={() => setIsRegisteringPatient(false)} className="text-gray-400 dark:text-military-400 hover:text-gray-600 dark:hover:text-military-100 transition-colors">
                           <X className="w-6 h-6" />
                       </button>
                   </div>
                   <form onSubmit={handleRegisterPatient} className="p-8 space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div className="space-y-1.5">
-                              <label className="text-sm font-semibold text-slate-700">Nome Completo</label>
+                              <label className="text-sm font-semibold text-gray-500 dark:text-military-400">Nome Completo</label>
                               <input 
                                   required
                                   type="text" 
-                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                                  className="w-full px-4 py-2.5 bg-white dark:bg-military-950 border border-gray-300 dark:border-military-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-800 dark:text-military-100"
                                   value={newPatient.name}
                                   onChange={e => setNewPatient({...newPatient, name: e.target.value})}
                               />
                           </div>
                           <div className="space-y-1.5">
-                              <label className="text-sm font-semibold text-slate-700">CPF</label>
+                              <label className="text-sm font-semibold text-gray-500 dark:text-military-400">CPF</label>
                               <input 
                                   required
                                   type="text" 
                                   placeholder="000.000.000-00"
-                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                                  className="w-full px-4 py-2.5 bg-white dark:bg-military-950 border border-gray-300 dark:border-military-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-800 dark:text-military-100"
                                   value={newPatient.cpf}
                                   onChange={e => setNewPatient({...newPatient, cpf: e.target.value})}
                               />
                           </div>
                           <div className="space-y-1.5">
-                              <label className="text-sm font-semibold text-slate-700">Data de Nascimento</label>
+                              <label className="text-sm font-semibold text-gray-500 dark:text-military-400">Data de Nascimento</label>
                               <input 
                                   required
                                   type="date" 
-                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                                  className="w-full px-4 py-2.5 bg-white dark:bg-military-950 border border-gray-300 dark:border-military-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-800 dark:text-military-100 dark:[color-scheme:dark]"
                                   value={newPatient.birthDate}
                                   onChange={e => setNewPatient({...newPatient, birthDate: e.target.value})}
                               />
                           </div>
                           <div className="space-y-1.5">
-                              <label className="text-sm font-semibold text-slate-700">PREC CP</label>
+                              <label className="text-sm font-semibold text-gray-500 dark:text-military-400">PREC CP</label>
                               <input 
                                   required
                                   type="text" 
                                   placeholder="Apenas números"
-                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                                  className="w-full px-4 py-2.5 bg-white dark:bg-military-950 border border-gray-300 dark:border-military-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-800 dark:text-military-100"
                                   value={newPatient.precCp}
                                   onChange={e => {
                                       const val = e.target.value.replace(/\D/g, '');
@@ -663,9 +801,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                               />
                           </div>
                           <div className="space-y-1.5">
-                              <label className="text-sm font-semibold text-slate-700">Tipo de Paciente</label>
+                              <label className="text-sm font-semibold text-gray-500 dark:text-military-400">Tipo de Paciente</label>
                               <select 
-                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                                  className="w-full px-4 py-2.5 bg-white dark:bg-military-950 border border-gray-300 dark:border-military-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-800 dark:text-military-100"
                                   value={newPatient.type}
                                   onChange={e => setNewPatient({...newPatient, type: e.target.value as PatientType})}
                               >
@@ -674,9 +812,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                               </select>
                           </div>
                           <div className="space-y-1.5">
-                              <label className="text-sm font-semibold text-slate-700">OM de Vinculação</label>
+                              <label className="text-sm font-semibold text-gray-500 dark:text-military-400">OM de Vinculação</label>
                               <select 
-                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                                  className="w-full px-4 py-2.5 bg-white dark:bg-military-950 border border-gray-300 dark:border-military-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-800 dark:text-military-100"
                                   value={newPatient.om}
                                   onChange={e => setNewPatient({...newPatient, om: e.target.value as MilitaryOrganization})}
                               >
@@ -689,29 +827,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                       </div>
 
                       {newPatient.type === 'DEPENDENTE' && (
-                          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 animate-in fade-in">
-                               <label className="text-sm font-semibold text-slate-700 block mb-1.5">Nome Completo do Titular</label>
+                          <div className="bg-gray-50 dark:bg-military-800 p-4 rounded-xl border border-gray-200 dark:border-military-700 animate-in fade-in">
+                               <label className="text-sm font-semibold text-gray-500 dark:text-military-400 block mb-1.5">Nome Completo do Titular</label>
                                <input 
                                   required
                                   type="text" 
-                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                                  className="w-full px-4 py-2.5 bg-white dark:bg-military-950 border border-gray-300 dark:border-military-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-800 dark:text-military-100"
                                   value={newPatient.holderName}
                                   onChange={e => setNewPatient({...newPatient, holderName: e.target.value})}
                               />
                           </div>
                       )}
 
-                      <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                      <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-military-700">
                           <button 
                               type="button" 
                               onClick={() => setIsRegisteringPatient(false)}
-                              className="px-6 py-2.5 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors"
+                              className="px-6 py-2.5 text-gray-500 dark:text-military-400 hover:bg-gray-100 dark:hover:bg-military-800 rounded-lg font-medium transition-colors"
                           >
                               Cancelar
                           </button>
                           <button 
                               type="submit" 
-                              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium shadow-sm transition-colors flex items-center gap-2"
+                              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white rounded-lg font-medium shadow-sm transition-colors flex items-center gap-2"
                           >
                               <Check className="w-5 h-5" /> Confirmar Cadastro
                           </button>
@@ -723,23 +861,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
 
       {/* Attachment Modal */}
       {viewingAttachment && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-              <div className="bg-white rounded-xl overflow-hidden max-w-4xl w-full max-h-[90vh] flex flex-col">
-                  <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-                      <h3 className="font-bold text-gray-800">Anexo do Pedido Médico</h3>
-                      <button onClick={() => setViewingAttachment(null)} className="p-1 hover:bg-gray-100 rounded-full">
-                          <X className="w-6 h-6 text-gray-500" />
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+              <div className="bg-white dark:bg-military-900 rounded-xl overflow-hidden max-w-4xl w-full max-h-[90vh] flex flex-col border border-gray-200 dark:border-military-700">
+                  <div className="p-4 border-b border-gray-200 dark:border-military-700 flex justify-between items-center">
+                      <h3 className="font-bold text-gray-800 dark:text-military-100">Anexo do Pedido Médico</h3>
+                      <button onClick={() => setViewingAttachment(null)} className="p-1 hover:bg-gray-100 dark:hover:bg-military-700 rounded-full">
+                          <X className="w-6 h-6 text-gray-500 dark:text-military-400" />
                       </button>
                   </div>
-                  <div className="flex-1 overflow-auto p-4 bg-gray-50 flex justify-center">
+                  <div className="flex-1 overflow-auto p-4 bg-gray-50 dark:bg-military-950 flex justify-center">
                       <img src={viewingAttachment} alt="Pedido Médico" className="max-w-full h-auto object-contain rounded shadow-lg" />
                   </div>
               </div>
           </div>
       )}
 
-      <div className="py-4 text-center border-t border-gray-200 mt-auto">
-         <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">
+      <div className="py-4 text-center border-t border-gray-200 dark:border-military-700 mt-auto">
+         <p className="text-[10px] text-gray-500 dark:text-military-400 font-medium uppercase tracking-wide">
              © 2025 CB BRUNO GASPARETE NASCIMENTO
          </p>
       </div>
@@ -750,20 +888,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
 // --- Subcomponents ---
 
 const StatCard: React.FC<{ icon: any, label: string, value: string, color: string }> = ({ icon: Icon, label, value, color }) => (
-    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-military-900 p-5 rounded-2xl shadow-sm border border-gray-200 dark:border-military-700 flex items-center gap-4 hover:shadow-md transition-shadow">
         <div className={`${color} p-3 rounded-xl text-white shadow-sm`}>
             <Icon className="w-6 h-6" />
         </div>
         <div>
-            <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">{label}</p>
-            <p className="text-2xl font-bold text-slate-800">{value}</p>
+            <p className="text-gray-500 dark:text-military-400 text-xs uppercase font-bold tracking-wider">{label}</p>
+            <p className="text-2xl font-bold text-gray-800 dark:text-military-100">{value}</p>
         </div>
     </div>
 );
 
 const EmptyState: React.FC<{ message: string }> = ({ message }) => (
-    <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-        <p className="text-gray-400 text-sm">{message}</p>
+    <div className="text-center py-10 bg-white dark:bg-military-900 rounded-xl border border-dashed border-gray-300 dark:border-military-700">
+        <p className="text-gray-500 dark:text-military-400 text-sm">{message}</p>
     </div>
 );
 
@@ -781,11 +919,11 @@ const ItemManager: React.FC<{
     
     const getStatusColor = (s: Status) => {
         switch(s) {
-            case Status.READY: return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-            case Status.PROCESSING: return 'bg-amber-100 text-amber-800 border-amber-200';
-            case Status.PENDING: return 'bg-slate-100 text-slate-600 border-slate-200';
-            case Status.DELIVERED: return 'bg-blue-100 text-blue-800 border-blue-200';
-            default: return 'bg-gray-100 text-gray-600';
+            case Status.READY: return 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900';
+            case Status.PROCESSING: return 'bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-500 border-amber-200 dark:border-amber-900';
+            case Status.PENDING: return 'bg-gray-100 dark:bg-military-800 text-gray-500 dark:text-military-400 border-gray-200 dark:border-military-700';
+            case Status.DELIVERED: return 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900';
+            default: return 'bg-gray-100 dark:bg-military-800 text-gray-500 dark:text-military-400';
         }
     };
 
@@ -800,68 +938,68 @@ const ItemManager: React.FC<{
     }
 
     return (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-shadow hover:shadow-sm group">
+        <div className="bg-white dark:bg-military-900 border border-gray-200 dark:border-military-700 rounded-xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-shadow hover:shadow-sm group">
             <div className="flex-grow">
                 <div className="flex items-center gap-3">
-                    <h4 className="font-bold text-slate-800">{name}</h4>
+                    <h4 className="font-bold text-gray-800 dark:text-military-100">{name}</h4>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border ${getStatusColor(status)}`}>
                         {getStatusLabel(status, type)}
                     </span>
                     {attachmentUrl && (
                         <button 
                             onClick={onViewAttachment}
-                            className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-0.5 rounded flex items-center gap-1 transition-colors"
+                            className="text-xs bg-gray-100 dark:bg-military-800 hover:bg-gray-200 dark:hover:bg-military-700 text-gray-500 dark:text-military-300 px-2 py-0.5 rounded flex items-center gap-1 transition-colors"
                         >
                             <Paperclip className="w-3 h-3" /> Ver Anexo
                         </button>
                     )}
                 </div>
-                <p className="text-sm text-slate-400 mt-1">{meta}</p>
+                <p className="text-sm text-gray-500 dark:text-military-400 mt-1">{meta}</p>
             </div>
             
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto mt-3 lg:mt-0">
-                <div className="flex items-center gap-1 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-1 bg-gray-50 dark:bg-military-800 p-1.5 rounded-lg border border-gray-200 dark:border-military-700">
                     <StatusButton 
                         active={status === Status.PENDING} 
                         onClick={() => onStatusChange(Status.PENDING)}
                         icon={Clock}
                         label="Pendente"
-                        colorClass="text-slate-600 bg-white shadow-sm ring-1 ring-slate-200"
+                        colorClass="text-gray-500 dark:text-military-300 bg-white dark:bg-military-700 shadow-sm ring-1 ring-gray-200 dark:ring-military-600"
                     />
                     <StatusButton 
                         active={status === Status.PROCESSING} 
                         onClick={() => onStatusChange(Status.PROCESSING)}
                         icon={RefreshCw}
                         label={type === 'guide' ? 'Em Confecção' : 'Em Análise'}
-                        colorClass="text-amber-600 bg-white shadow-sm ring-1 ring-amber-200"
+                        colorClass="text-amber-500 bg-white dark:bg-military-700 shadow-sm ring-1 ring-amber-200 dark:ring-amber-900"
                     />
                     <StatusButton 
                         active={status === Status.READY} 
                         onClick={() => onStatusChange(Status.READY)}
                         icon={Check}
                         label="Pronto"
-                        colorClass="text-emerald-600 bg-white shadow-sm ring-1 ring-emerald-200"
+                        colorClass="text-emerald-500 dark:text-emerald-400 bg-white dark:bg-military-700 shadow-sm ring-1 ring-emerald-200 dark:ring-emerald-900"
                     />
                      <StatusButton 
                         active={status === Status.DELIVERED} 
                         onClick={() => onStatusChange(Status.DELIVERED)}
                         icon={Truck}
                         label="Entregue"
-                        colorClass="text-blue-600 bg-white shadow-sm ring-1 ring-blue-200"
+                        colorClass="text-blue-500 dark:text-blue-400 bg-white dark:bg-military-700 shadow-sm ring-1 ring-blue-200 dark:ring-blue-900"
                     />
                 </div>
                 
-                <div className="flex items-center gap-1 pl-2 border-l border-gray-100">
+                <div className="flex items-center gap-1 pl-2 border-l border-gray-200 dark:border-military-700">
                     <button 
                         onClick={onEdit}
-                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        className="p-2 text-gray-400 dark:text-military-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
                         title="Editar"
                     >
                         <Edit className="w-4 h-4" />
                     </button>
                     <button 
                         onClick={onDelete}
-                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        className="p-2 text-gray-400 dark:text-military-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                         title="Excluir"
                     >
                         <Trash2 className="w-4 h-4" />
@@ -876,7 +1014,7 @@ const StatusButton: React.FC<{ active: boolean, onClick: () => void, icon: any, 
     <button 
         onClick={onClick}
         title={label}
-        className={`p-2 rounded-md transition-all duration-200 ${active ? colorClass : 'text-gray-300 hover:text-gray-500 hover:bg-gray-200'}`}
+        className={`p-2 rounded-md transition-all duration-200 ${active ? colorClass : 'text-gray-400 dark:text-military-500 hover:text-gray-600 dark:hover:text-military-300 hover:bg-gray-100 dark:hover:bg-military-700'}`}
     >
         <Icon className="w-4 h-4" />
     </button>

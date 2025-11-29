@@ -78,18 +78,18 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
 
   if (success) {
       return (
-          <div className="max-w-2xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-gray-200 text-center animate-fade-in">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Check className="w-8 h-8 text-green-600" />
+          <div className="max-w-2xl mx-auto bg-white dark:bg-military-900 p-8 rounded-2xl shadow-sm border border-gray-200 dark:border-military-700 text-center animate-fade-in transition-colors">
+              <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Check className="w-8 h-8 text-green-600 dark:text-green-400" />
               </div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">Solicitação Enviada!</h2>
-              <p className="text-gray-500 mb-6">
+              <h2 className="text-2xl font-bold text-gray-800 dark:text-military-100 mb-2">Solicitação Enviada!</h2>
+              <p className="text-gray-500 dark:text-military-400 mb-6">
                   Sua solicitação de guia foi recebida. O setor responsável irá analisar o pedido médico e iniciar a confecção.
                   <br/>Acompanhe o status pelo menu "Minhas Guias".
               </p>
               <button 
                 onClick={() => setSuccess(false)}
-                className="bg-slate-800 text-white px-6 py-2 rounded-lg hover:bg-slate-900 transition-colors"
+                className="bg-gray-900 dark:bg-military-950 text-white px-6 py-2 rounded-lg hover:bg-gray-800 dark:hover:bg-military-700 transition-colors"
               >
                   Nova Solicitação
               </button>
@@ -99,13 +99,13 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="bg-slate-50 p-6 border-b border-gray-200">
-            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+      <div className="bg-white dark:bg-military-900 rounded-2xl shadow-sm border border-gray-200 dark:border-military-700 overflow-hidden transition-colors">
+        <div className="bg-gray-50 dark:bg-military-800 p-6 border-b border-gray-200 dark:border-military-700">
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-military-100 flex items-center gap-2">
                 <FileText className="w-6 h-6 text-red-600" />
                 Solicitar Guia Médica
             </h2>
-            <p className="text-slate-500 mt-1">
+            <p className="text-gray-500 dark:text-military-400 mt-1">
                 Preencha os dados e anexe uma foto legível do seu pedido médico (receituário).
             </p>
         </div>
@@ -113,22 +113,22 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
         <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700">Especialidade / Procedimento</label>
+                    <label className="text-sm font-semibold text-gray-600 dark:text-military-400">Especialidade / Procedimento</label>
                     <input 
                         type="text"
                         placeholder="Ex: Cardiologia, Raio-X..."
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-military-600 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all bg-white dark:bg-military-950 text-gray-800 dark:text-military-100"
                         value={specialty}
                         onChange={(e) => setSpecialty(e.target.value)}
                         required
                     />
                 </div>
                 <div className="space-y-2">
-                    <label className="text-sm font-semibold text-gray-700">Médico Solicitante</label>
+                    <label className="text-sm font-semibold text-gray-600 dark:text-military-400">Médico Solicitante</label>
                     <input 
                         type="text"
                         placeholder="Nome do médico no pedido"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all"
+                        className="w-full px-4 py-3 border border-gray-300 dark:border-military-600 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all bg-white dark:bg-military-950 text-gray-800 dark:text-military-100"
                         value={doctor}
                         onChange={(e) => setDoctor(e.target.value)}
                         required
@@ -137,13 +137,13 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
             </div>
 
             <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700">Foto do Pedido Médico</label>
+                <label className="text-sm font-semibold text-gray-600 dark:text-military-400">Foto do Pedido Médico</label>
                 
                 {!previewUrl ? (
                     <div 
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={handleDrop}
-                        className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:bg-gray-50 hover:border-red-300 transition-all group"
+                        className="border-2 border-dashed border-gray-300 dark:border-military-600 rounded-xl p-8 text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-military-800 hover:border-red-300 transition-all group"
                         onClick={() => fileInputRef.current?.click()}
                     >
                         <input 
@@ -153,23 +153,23 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
                             accept="image/*"
                             onChange={handleFileChange}
                         />
-                        <div className="bg-red-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-red-100 transition-colors">
-                            <Upload className="w-8 h-8 text-red-600" />
+                        <div className="bg-red-50 dark:bg-red-900/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-red-100 dark:group-hover:bg-red-900/40 transition-colors">
+                            <Upload className="w-8 h-8 text-red-600 dark:text-red-400" />
                         </div>
-                        <p className="font-medium text-gray-700">Clique para enviar ou arraste a foto aqui</p>
-                        <p className="text-sm text-gray-400 mt-1">Formatos aceitos: JPG, PNG (Max 5MB)</p>
+                        <p className="font-medium text-gray-600 dark:text-military-300">Clique para enviar ou arraste a foto aqui</p>
+                        <p className="text-sm text-gray-400 dark:text-military-500 mt-1">Formatos aceitos: JPG, PNG (Max 5MB)</p>
                     </div>
                 ) : (
-                    <div className="relative border border-gray-200 rounded-xl overflow-hidden bg-gray-50">
-                         <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-white">
+                    <div className="relative border border-gray-200 dark:border-military-600 rounded-xl overflow-hidden bg-gray-50 dark:bg-military-800">
+                         <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-military-600 bg-white dark:bg-military-900">
                             <div className="flex items-center gap-2">
-                                <ImageIcon className="w-4 h-4 text-gray-500" />
-                                <span className="text-sm font-medium text-gray-700 truncate max-w-[200px]">{file?.name}</span>
+                                <ImageIcon className="w-4 h-4 text-gray-500 dark:text-military-400" />
+                                <span className="text-sm font-medium text-gray-700 dark:text-military-200 truncate max-w-[200px]">{file?.name}</span>
                             </div>
                             <button 
                                 type="button" 
                                 onClick={clearFile}
-                                className="text-gray-400 hover:text-red-600 p-1"
+                                className="text-gray-400 dark:text-military-400 hover:text-red-600 dark:hover:text-red-400 p-1"
                             >
                                 <X className="w-5 h-5" />
                             </button>
@@ -181,9 +181,9 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
                 )}
             </div>
 
-            <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex gap-3">
-                <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                <p className="text-sm text-blue-800">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 p-4 rounded-xl flex gap-3">
+                <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                <p className="text-sm text-blue-800 dark:text-blue-200">
                     Certifique-se de que a foto está nítida e mostra todas as informações do pedido (data, assinatura e carimbo do médico).
                 </p>
             </div>
@@ -192,7 +192,7 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
                 <button 
                     type="submit"
                     disabled={isSubmitting}
-                    className="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-8 rounded-xl transition-colors shadow-lg shadow-red-200 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-8 rounded-xl transition-colors shadow-lg shadow-red-200 dark:shadow-none disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                     {isSubmitting ? 'Enviando...' : (
                         <>

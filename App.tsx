@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Activity, LogOut, User, Menu, X, FilePlus, Bell, MessageSquare, UserCog } from 'lucide-react';
+import { LayoutDashboard, FileText, Activity, LogOut, User, Menu, X, FilePlus, Bell, MessageSquare, UserCog, Smile, Moon, Sun } from 'lucide-react';
 import { loginUser, acknowledgeItem, requestGuide, getGlobalAnnouncement } from './services/mockData';
 import { Patient, Exam, Guide, Notification, User as UserType } from './types';
 import Login from './components/Login';
@@ -10,6 +10,9 @@ import GuideList from './components/GuideList';
 import RequestGuide from './components/RequestGuide';
 import AdminDashboard from './components/AdminDashboard';
 import ProfileSettings from './components/ProfileSettings';
+import DentalScheduler from './components/DentalScheduler';
+import DentalList from './components/DentalList';
+import Logo from './components/Logo';
 
 interface AppState {
   user: UserType;
@@ -18,6 +21,7 @@ interface AppState {
     exams: Exam[];
     guides: Guide[];
     notifications: Notification[];
+    dentalAppointments: any[];
   };
 }
 
@@ -25,6 +29,20 @@ const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [globalAnnouncement, setGlobalAnnouncement] = useState('');
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+
+  // Theme Toggle Effect
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
 
   // Fetch global announcement on mount/update
   useEffect(() => {
@@ -69,39 +87,38 @@ const App: React.FC = () => {
   };
 
   if (!appState) {
-    return <Login onLogin={handleLogin} />;
+    return <Login onLogin={handleLogin} theme={theme} toggleTheme={toggleTheme} />;
   }
 
-  // Admin View
-  if (appState.user.role === 'exam_manager' || appState.user.role === 'guide_manager') {
+  // Admin View (Exams, Guides, or Dentist Manager)
+  if (appState.user.role === 'exam_manager' || appState.user.role === 'guide_manager' || appState.user.role === 'dentist_manager') {
       return (
-        <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
-           <header className="bg-white border-b border-gray-200 h-16 px-6 flex justify-between items-center sticky top-0 z-20 shadow-sm">
+        <div className="min-h-screen bg-gray-100 dark:bg-military-950 flex flex-col font-sans transition-colors duration-300">
+           <header className="bg-white dark:bg-military-900 border-b border-gray-200 dark:border-military-700 h-16 px-6 flex justify-between items-center sticky top-0 z-20 shadow-sm transition-colors duration-300">
                <div className="flex items-center gap-3">
-                  <div className="bg-slate-800 p-1.5 rounded-lg text-white">
-                    {/* Divisa de Cabo Logo (Rotated Up) */}
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                        <g transform="rotate(180 12 12)">
-                          <path d="M19.5 5.5L12 13L4.5 5.5L6 4L12 10L18 4L19.5 5.5Z" />
-                          <path d="M19.5 11.5L12 19L4.5 11.5L6 10L12 16L18 10L19.5 11.5Z" />
-                        </g>
-                    </svg>
-                  </div>
+                  <Logo size="sm" showText={false} />
                   <div className="flex flex-col">
-                      <span className="font-bold text-slate-800 leading-tight">CONSULTE FS</span>
-                      <span className="text-[10px] text-slate-500 font-medium tracking-wider uppercase">
-                        {appState.user.role === 'exam_manager' ? 'Gestão de Exames' : 'Gestão de Guias'}
+                      <span className="font-bold text-gray-800 dark:text-military-100 leading-tight">CONSULTE FS</span>
+                      <span className="text-[10px] text-gray-500 dark:text-military-300 font-medium tracking-wider uppercase">
+                        {appState.user.role === 'exam_manager' ? 'Gestão de Exames' : 
+                         appState.user.role === 'guide_manager' ? 'Gestão de Guias' : 'Gestão Odontológica'}
                       </span>
                   </div>
                </div>
                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={toggleTheme}
+                    className="p-2 rounded-lg text-gray-500 dark:text-military-300 hover:bg-gray-100 dark:hover:bg-military-700 transition-colors"
+                  >
+                    {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                  </button>
                   <div className="hidden md:flex flex-col text-right">
-                      <span className="text-sm font-semibold text-slate-700">{appState.user.name}</span>
-                      <span className="text-xs text-slate-400">Administrador</span>
+                      <span className="text-sm font-semibold text-gray-700 dark:text-military-200">{appState.user.name}</span>
+                      <span className="text-xs text-gray-500 dark:text-military-400">Administrador</span>
                   </div>
                   <button 
                     onClick={handleLogout} 
-                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="p-2 text-gray-500 dark:text-military-300 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-military-700 rounded-lg transition-colors"
                     title="Sair"
                   >
                     <LogOut className="w-5 h-5" />
@@ -116,7 +133,7 @@ const App: React.FC = () => {
   // Patient View
   return (
     <HashRouter>
-      <div className="flex min-h-screen bg-slate-50 font-sans">
+      <div className="flex min-h-screen bg-gray-100 dark:bg-military-950 font-sans text-gray-900 dark:text-military-100 transition-colors duration-300">
         <Sidebar 
           isOpen={isSidebarOpen} 
           setIsOpen={setIsSidebarOpen} 
@@ -128,6 +145,8 @@ const App: React.FC = () => {
             user={appState.patientData!.profile} 
             toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
             notifications={appState.patientData!.notifications}
+            theme={theme}
+            toggleTheme={toggleTheme}
           />
           
           <main className="flex-1 p-4 md:p-8 overflow-y-auto">
@@ -136,6 +155,8 @@ const App: React.FC = () => {
                 <Route path="/exames" element={<ExamList exams={appState.patientData!.exams} onAcknowledge={(id) => handleAcknowledge(id, 'exam')} />} />
                 <Route path="/guias" element={<GuideList guides={appState.patientData!.guides} onAcknowledge={(id) => handleAcknowledge(id, 'guide')} />} />
                 <Route path="/solicitar" element={<RequestGuide onSubmit={handleRequestGuide} />} />
+                <Route path="/dentista/agendar" element={<DentalScheduler cpf={appState.patientData!.profile.cpf} />} />
+                <Route path="/dentista/meus-agendamentos" element={<DentalList appointments={appState.patientData!.dentalAppointments || []} />} />
                 <Route path="/perfil" element={<ProfileSettings patient={appState.patientData!.profile} />} />
                 <Route path="*" element={<Navigate to="/" />} />
              </Routes>
@@ -148,56 +169,63 @@ const App: React.FC = () => {
 
 // --- Helper Components for Layout ---
 
-const Header: React.FC<{ user: Patient, toggleSidebar: () => void, notifications: Notification[] }> = ({ user, toggleSidebar, notifications }) => {
+const Header: React.FC<{ user: Patient, toggleSidebar: () => void, notifications: Notification[], theme: 'light'|'dark', toggleTheme: () => void }> = ({ user, toggleSidebar, notifications, theme, toggleTheme }) => {
   const [showNotifs, setShowNotifs] = useState(false);
-  const unreadCount = notifications.filter(n => !n.read).length; // In this mock, we just count all as unread/read based on existence mostly
-
+  
   return (
-    <header className="bg-white/80 backdrop-blur-md border-b border-gray-200 h-16 flex items-center justify-between px-4 md:px-8 sticky top-0 z-10 transition-all">
+    <header className="bg-white/90 dark:bg-military-900/90 backdrop-blur-md border-b border-gray-200 dark:border-military-700 h-16 flex items-center justify-between px-4 md:px-8 sticky top-0 z-10 transition-colors duration-300">
       <div className="flex items-center gap-3">
-        <button onClick={toggleSidebar} className="md:hidden p-2 hover:bg-gray-100 rounded-lg text-slate-600 transition-colors">
+        <button onClick={toggleSidebar} className="md:hidden p-2 hover:bg-gray-100 dark:hover:bg-military-700 rounded-lg text-gray-500 dark:text-military-300 transition-colors">
           <Menu className="w-6 h-6" />
         </button>
-        <span className="md:hidden font-bold text-slate-800 tracking-tight">CONSULTE FS</span>
+        <span className="md:hidden font-bold text-gray-800 dark:text-military-100 tracking-tight">CONSULTE FS</span>
       </div>
 
       <div className="flex items-center gap-4">
         
+        {/* Theme Toggle */}
+        <button 
+            onClick={toggleTheme}
+            className="p-2 rounded-lg text-gray-500 dark:text-military-300 hover:bg-gray-100 dark:hover:bg-military-700 transition-colors"
+        >
+            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </button>
+
         {/* Notifications Bell */}
         <div className="relative">
             <button 
                 onClick={() => setShowNotifs(!showNotifs)}
-                className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors relative"
+                className="p-2 text-gray-500 dark:text-military-300 hover:bg-gray-100 dark:hover:bg-military-700 rounded-lg transition-colors relative"
             >
                 <Bell className="w-5 h-5" />
                 {notifications.length > 0 && (
-                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-600 rounded-full border border-white"></span>
+                    <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-600 rounded-full border border-white dark:border-military-900"></span>
                 )}
             </button>
 
             {/* Notification Dropdown */}
             {showNotifs && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
-                    <div className="px-4 py-2 border-b border-gray-50 flex justify-between items-center">
-                        <h4 className="font-bold text-slate-700 text-sm">Notificações</h4>
-                        <span className="text-xs text-slate-400">{notifications.length} nova(s)</span>
+                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-military-900 rounded-xl shadow-lg border border-gray-200 dark:border-military-700 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                    <div className="px-4 py-2 border-b border-gray-200 dark:border-military-700 flex justify-between items-center">
+                        <h4 className="font-bold text-gray-700 dark:text-military-200 text-sm">Notificações</h4>
+                        <span className="text-xs text-gray-500 dark:text-military-400">{notifications.length} nova(s)</span>
                     </div>
                     <div className="max-h-64 overflow-y-auto">
                         {notifications.length === 0 ? (
-                            <div className="p-4 text-center text-slate-400 text-sm">
+                            <div className="p-4 text-center text-gray-500 dark:text-military-400 text-sm">
                                 Nenhuma notificação.
                             </div>
                         ) : (
                             notifications.map(notif => (
-                                <div key={notif.id} className="px-4 py-3 hover:bg-slate-50 border-b border-gray-50 last:border-0 transition-colors">
+                                <div key={notif.id} className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-military-700 border-b border-gray-100 dark:border-military-700 last:border-0 transition-colors">
                                     <div className="flex items-start gap-3">
-                                        <div className="bg-blue-100 p-1.5 rounded-full mt-0.5 text-blue-600">
+                                        <div className="bg-blue-100 dark:bg-military-700 p-1.5 rounded-full mt-0.5 text-blue-600 dark:text-blue-400">
                                             <MessageSquare className="w-3 h-3" />
                                         </div>
                                         <div>
-                                            <p className="font-bold text-slate-800 text-sm">{notif.title}</p>
-                                            <p className="text-slate-500 text-xs mt-0.5">{notif.message}</p>
-                                            <p className="text-slate-300 text-[10px] mt-1">{notif.date}</p>
+                                            <p className="font-bold text-gray-800 dark:text-military-100 text-sm">{notif.title}</p>
+                                            <p className="text-gray-500 dark:text-military-300 text-xs mt-0.5">{notif.message}</p>
+                                            <p className="text-gray-400 dark:text-military-400 text-[10px] mt-1">{notif.date}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -208,12 +236,12 @@ const Header: React.FC<{ user: Patient, toggleSidebar: () => void, notifications
             )}
         </div>
 
-        <div className="flex items-center gap-3 pl-4 border-l border-gray-100">
+        <div className="flex items-center gap-3 pl-4 border-l border-gray-200 dark:border-military-700">
           <div className="text-right hidden sm:block">
-            <p className="text-sm font-semibold text-slate-800">{user.name}</p>
-            <p className="text-[10px] uppercase tracking-wide text-slate-500">Paciente</p>
+            <p className="text-sm font-semibold text-gray-700 dark:text-military-100">{user.name}</p>
+            <p className="text-[10px] uppercase tracking-wide text-gray-500 dark:text-military-400">Paciente</p>
           </div>
-          <div className="w-10 h-10 bg-gradient-to-br from-red-700 to-red-900 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-md">
+          <div className="w-10 h-10 bg-gray-200 dark:bg-military-700 rounded-full flex items-center justify-center text-gray-600 dark:text-military-100 font-bold border-2 border-white dark:border-military-600 shadow-md">
             {user.name.substring(0, 2).toUpperCase()}
           </div>
         </div>
@@ -235,6 +263,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, onLogout }) => {
     { icon: LayoutDashboard, label: 'Visão Geral', path: '/' },
     { icon: Activity, label: 'Meus Exames', path: '/exames' },
     { icon: FileText, label: 'Minhas Guias', path: '/guias' },
+    { icon: Smile, label: 'Dentista', path: '/dentista/meus-agendamentos' },
     { icon: FilePlus, label: 'Solicitar Guia', path: '/solicitar' },
     { icon: UserCog, label: 'Meu Perfil', path: '/perfil' },
   ];
@@ -242,37 +271,23 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, onLogout }) => {
   return (
     <>
       <div 
-        className={`fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-20 md:hidden transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-20 md:hidden transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setIsOpen(false)}
       />
 
       <aside 
-        className={`fixed inset-y-0 left-0 bg-slate-900 w-72 z-30 transform transition-transform duration-300 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} shadow-2xl flex flex-col`}
+        className={`fixed inset-y-0 left-0 bg-white dark:bg-military-900 w-72 z-30 transform transition-transform duration-300 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} shadow-2xl flex flex-col border-r border-gray-200 dark:border-military-700`}
       >
-        <div className="p-8 flex justify-between items-center border-b border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="bg-red-700 p-2 rounded-lg shadow-lg shadow-red-900/50">
-               {/* Divisa de Cabo Logo (Rotated Up) */}
-              <svg viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-white">
-                 <g transform="rotate(180 12 12)">
-                   <path d="M19.5 5.5L12 13L4.5 5.5L6 4L12 10L18 4L19.5 5.5Z" />
-                   <path d="M19.5 11.5L12 19L4.5 11.5L6 10L12 16L18 10L19.5 11.5Z" />
-                 </g>
-              </svg>
-            </div>
-            <div>
-                <h1 className="text-xl font-bold text-white tracking-tight leading-none">CONSULTE FS</h1>
-                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-1">Portal do Paciente</p>
-            </div>
-          </div>
-          <button onClick={() => setIsOpen(false)} className="md:hidden text-slate-400 hover:text-white transition-colors">
+        <div className="p-8 flex justify-between items-center border-b border-gray-200 dark:border-military-700">
+          <Logo size="md" className="dark:text-white text-gray-900" />
+          <button onClick={() => setIsOpen(false)} className="md:hidden text-gray-500 dark:text-military-300 hover:text-gray-900 dark:hover:text-white transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <nav className="p-4 space-y-2 flex-1 mt-4">
           {menuItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive = location.pathname === item.path || (item.path.includes('dentista') && location.pathname.includes('dentista'));
             const Icon = item.icon;
             return (
               <Link
@@ -281,21 +296,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, onLogout }) => {
                 onClick={() => setIsOpen(false)}
                 className={`flex items-center gap-4 px-4 py-4 rounded-xl text-sm font-medium transition-all duration-200 group ${
                   isActive 
-                    ? 'bg-red-700 text-white shadow-lg shadow-red-900/20' 
-                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                    ? 'bg-gray-900 dark:bg-military-700 text-white shadow-lg border border-gray-800 dark:border-military-600' 
+                    : 'text-gray-500 dark:text-military-300 hover:bg-gray-100 dark:hover:bg-military-700 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
-                <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-white transition-colors'}`} />
+                <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-gray-400 dark:text-military-400 group-hover:text-gray-900 dark:group-hover:text-white transition-colors'}`} />
                 {item.label}
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-6 border-t border-slate-800">
+        <div className="p-6 border-t border-gray-200 dark:border-military-700">
           <button 
             onClick={onLogout}
-            className="flex items-center justify-center gap-3 px-4 py-3 w-full rounded-xl text-sm font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition-all duration-200"
+            className="flex items-center justify-center gap-3 px-4 py-3 w-full rounded-xl text-sm font-semibold text-gray-500 dark:text-military-300 hover:bg-gray-100 dark:hover:bg-military-700 hover:text-gray-900 dark:hover:text-white transition-all duration-200"
           >
             <LogOut className="w-5 h-5" />
             Sair do Sistema

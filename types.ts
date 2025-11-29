@@ -1,12 +1,13 @@
 
 export enum Status {
-  PENDING = 'PENDING',       // Aguardando Coleta/Confecção
+  PENDING = 'PENDING',       // Aguardando Coleta/Confecção/Confirmação
   PROCESSING = 'PROCESSING', // Em Processamento/Confecção
-  READY = 'READY',           // Pronto para Retirada
-  DELIVERED = 'DELIVERED',   // Entregue/Retirado
+  READY = 'READY',           // Pronto para Retirada/Confirmado
+  DELIVERED = 'DELIVERED',   // Entregue/Retirado/Realizado
+  CANCELED = 'CANCELED'      // Cancelado
 }
 
-export type Role = 'patient' | 'exam_manager' | 'guide_manager';
+export type Role = 'patient' | 'exam_manager' | 'guide_manager' | 'dentist_manager';
 
 export interface User {
   id: string;
@@ -55,6 +56,16 @@ export interface Guide {
   qrCodeData?: string;
   acknowledged?: boolean;
   attachmentUrl?: string; // URL/Base64 of the medical order photo
+}
+
+export interface DentalAppointment {
+  id: string;
+  dentist: string; // New field
+  procedure: string;
+  date: string;
+  time: string;
+  status: Status;
+  notes?: string;
 }
 
 export interface Notification {
