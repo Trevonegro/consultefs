@@ -49,23 +49,19 @@ const App: React.FC = () => {
     setGlobalAnnouncement(getGlobalAnnouncement());
     const interval = setInterval(() => {
         setGlobalAnnouncement(getGlobalAnnouncement());
-    }, 5000); 
+    }, 2000); // Poll for updates in this mock environment
     return () => clearInterval(interval);
   }, []);
 
-  const handleLogin = async (credential: string, password: string) => {
-    try {
-        const result = await loginUser(credential, password);
-        if (result) {
-          setAppState({
-            user: result.user,
-            patientData: result.data
-          });
-        } else {
-          alert("Credenciais inválidas. Verifique usuário e senha.");
-        }
-    } catch (e) {
-        alert("Erro ao conectar com o servidor.");
+  const handleLogin = (credential: string, password: string) => {
+    const result = loginUser(credential, password);
+    if (result) {
+      setAppState({
+        user: result.user,
+        patientData: result.data
+      });
+    } else {
+      alert("Credenciais inválidas. Verifique usuário e senha.");
     }
   };
 
@@ -73,22 +69,20 @@ const App: React.FC = () => {
     setAppState(null);
   };
 
-  const handleAcknowledge = async (id: string, type: 'exam' | 'guide') => {
+  const handleAcknowledge = (id: string, type: 'exam' | 'guide') => {
     if (appState?.user.cpf) {
-        const updatedData = await acknowledgeItem(appState.user.cpf, id, type);
+        const updatedData = acknowledgeItem(appState.user.cpf, id, type);
         if (updatedData) {
             setAppState(prev => prev ? { ...prev, patientData: updatedData } : null);
         }
     }
   };
 
-  const handleRequestGuide = async (data: { specialty: string; doctor: string; attachmentUrl: string }) => {
+  const handleRequestGuide = (data: { specialty: string; doctor: string; attachmentUrl: string }) => {
      if (appState?.user.cpf) {
-         await requestGuide(appState.user.cpf, data);
-         // Refresh Data manually or optimized
-         // For simplicity, we can reload or use acknowledgeItem's logic to fetch fresh data, 
-         // but requestGuide doesn't return full object. 
-         alert("Solicitação enviada.");
+         requestGuide(appState.user.cpf, data);
+         // Simulate re-fetch
+         setAppState(prev => prev ? { ...prev } : null);
      }
   };
 

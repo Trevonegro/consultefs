@@ -5,7 +5,7 @@ import { PatientType, MilitaryOrganization, Patient } from '../types';
 import Logo from './Logo';
 
 interface LoginProps {
-  onLogin: (credential: string, password: string) => Promise<void>; // Updated to Promise
+  onLogin: (credential: string, password: string) => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
 }
@@ -36,11 +36,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
   const [showRegPassword, setShowRegPassword] = useState(false);
 
   // --- LOGIN LOGIC ---
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await onLogin(credential, password);
-    setLoading(false);
+    // Simulate network delay
+    setTimeout(() => {
+      onLogin(credential, password);
+      setLoading(false);
+    }, 800);
   };
 
   const toggleAdmin = () => {
@@ -50,7 +53,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
   }
 
   // --- REGISTRATION LOGIC ---
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleRegister = (e: React.FormEvent) => {
       e.preventDefault();
       
       // Validation
@@ -73,15 +76,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
 
       setLoading(true);
       
-      // Async Registration
-      const result = await registerPatient(regData as Patient, regPassword);
-      setLoading(false);
-      
-      if (result.success) {
-          setRegSuccess(true);
-      } else {
-          alert(result.message);
-      }
+      setTimeout(() => {
+          // Pass the custom password to registerPatient
+          const result = registerPatient(regData as Patient, regPassword);
+          setLoading(false);
+          
+          if (result.success) {
+              setRegSuccess(true);
+          } else {
+              alert(result.message);
+          }
+      }, 1000);
   };
 
   const handlePrecCpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
