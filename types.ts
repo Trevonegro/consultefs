@@ -1,3 +1,4 @@
+
 export enum Status {
   PENDING = 'PENDING',       // Aguardando Coleta/Confecção
   PROCESSING = 'PROCESSING', // Em Processamento/Confecção
@@ -14,12 +15,21 @@ export interface User {
   cpf?: string;
 }
 
+export type PatientType = 'TITULAR' | 'DEPENDENTE';
+export type MilitaryOrganization = 'CIA CMDO' | '6ª CIA COM' | 'COMANDO DA BRIGADA' | 'PEL PE';
+
 export interface Patient {
   id: string;
   name: string;
   cpf: string;
-  email: string;
+  email: string; // Used as placeholder or optional
   avatarUrl?: string;
+  // New fields
+  birthDate?: string;
+  precCp?: string; // Numbers only
+  type?: PatientType;
+  holderName?: string; // Required if type is DEPENDENTE
+  om?: MilitaryOrganization;
 }
 
 export interface Exam {
@@ -38,7 +48,7 @@ export interface Exam {
 export interface Guide {
   id: string;
   specialty: string;
-  doctor: string;
+  doctor: string; // Can be used as "Data do Cadastro" context or keep doctor name if needed, but UI will change
   dateRequested: string;
   deadline: string;
   status: Status;

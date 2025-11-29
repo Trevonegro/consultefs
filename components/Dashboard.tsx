@@ -161,7 +161,7 @@ const Dashboard: React.FC<DashboardProps> = ({ patient, exams, guides, globalAnn
                         <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide border ${
                             g.status === Status.READY ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-slate-100 text-slate-500 border-slate-200'
                         }`}>
-                            {g.status === Status.READY ? 'Pronto' : 'Aguardando'}
+                            {g.status === Status.READY ? 'Pronto' : 'Em Confecção'}
                         </span>
                     </div>
                 ))}

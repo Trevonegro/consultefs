@@ -30,7 +30,7 @@ const ExamList: React.FC<ExamListProps> = ({ exams, onAcknowledge }) => {
                              <h3 className="font-bold text-gray-800 text-lg">{exam.name}</h3>
                              {exam.status === Status.READY && <CheckCircle className="w-5 h-5 text-green-500" />}
                         </div>
-                        <p className="text-sm text-gray-500">Solicitado em: {exam.dateRequested} • Dr(a). {exam.doctor}</p>
+                        <p className="text-sm text-gray-500">Solicitado em: {exam.dateRequested} • Laboratório: {exam.doctor}</p>
                     </div>
 
                     <div className="flex items-center gap-4">
@@ -39,7 +39,7 @@ const ExamList: React.FC<ExamListProps> = ({ exams, onAcknowledge }) => {
                             ? 'bg-green-50 text-green-700 border-green-200' 
                             : 'bg-yellow-50 text-yellow-700 border-yellow-200'
                         }`}>
-                            {exam.status === Status.READY ? 'RESULTADO PRONTO' : 'EM ANÁLISE / COLETA'}
+                            {exam.status === Status.READY ? 'RESULTADO PRONTO' : 'EM ANÁLISE'}
                         </div>
                         
                         {exam.status === Status.READY && (

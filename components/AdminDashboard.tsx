@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getAllPatients, getPatientDetails, updateExamStatus, updateGuideStatus, addExamToPatient, addGuideToPatient, getLabExamsDatabase, getGlobalAnnouncement, setGlobalAnnouncement, sendPatientNotification } from '../services/mockData';
-import { Status, Patient, Role } from '../types';
-import { Search, User, Activity, FileText, Check, Truck, Clock, RefreshCw, Plus, X, ChevronRight, Filter, Users, ClipboardList, Paperclip, Megaphone, Send, MessageSquare } from 'lucide-react';
+import { getAllPatients, getPatientDetails, updateExamStatus, updateGuideStatus, addExamToPatient, addGuideToPatient, getLabExamsDatabase, getGlobalAnnouncement, setGlobalAnnouncement, sendPatientNotification, registerPatient, deleteItem, editItem } from '../services/mockData';
+import { Status, Role, PatientType, MilitaryOrganization, Patient } from '../types';
+import { Search, User, Activity, FileText, Check, Truck, Clock, RefreshCw, Plus, X, ChevronRight, Users, ClipboardList, Paperclip, Megaphone, Send, MessageSquare, Trash2, Edit, Save, UserPlus, Shield } from 'lucide-react';
 
 interface AdminDashboardProps {
   role: Role;
@@ -21,11 +21,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
   const [msgTitle, setMsgTitle] = useState('');
   const [msgContent, setMsgContent] = useState('');
 
-  // Forms state
+  // Item Forms state (Add)
   const [isAdding, setIsAdding] = useState(false);
   const [newItemName, setNewItemName] = useState('');
-  const [newItemDoctor, setNewItemDoctor] = useState('');
+  const [newItemDoctor, setNewItemDoctor] = useState(''); // Used as Doctor Name for Exams, and Date for Guides
   const [newItemDeadline, setNewItemDeadline] = useState('');
+
+  // Edit Item State
+  const [editingItem, setEditingItem] = useState<{id: string, type: 'exam' | 'guide', data: any} | null>(null);
+
+  // Patient Registration State
+  const [isRegisteringPatient, setIsRegisteringPatient] = useState(false);
+  const [newPatient, setNewPatient] = useState<Partial<Patient>>({
+      name: '',
+      cpf: '',
+      birthDate: '',
+      precCp: '',
+      type: 'TITULAR',
+      holderName: '',
+      om: 'CIA CMDO'
+  });
 
   // Force re-render after update
   const [tick, setTick] = useState(0); 
@@ -71,6 +86,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
     if (role === 'exam_manager') {
       addExamToPatient(selectedPatientCpf, newItemName, newItemDoctor);
     } else if (role === 'guide_manager') {
+      // newItemDoctor acts as Date Registered for guides per requirements
       addGuideToPatient(selectedPatientCpf, newItemName, newItemDoctor, newItemDeadline);
     }
 
@@ -80,6 +96,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
     setNewItemDoctor('');
     setNewItemDeadline('');
     setTick(t => t + 1);
+  };
+
+  const handleDeleteItem = (id: string, type: 'exam' | 'guide') => {
+      if(!selectedPatientCpf) return;
+      if(window.confirm('Tem certeza que deseja excluir este item?')) {
+          deleteItem(selectedPatientCpf, id, type);
+          setTick(t => t + 1);
+      }
+  };
+
+  const handleStartEdit = (item: any, type: 'exam' | 'guide') => {
+      setEditingItem({
+          id: item.id,
+          type,
+          data: { ...item }
+      });
+  };
+
+  const handleSaveEdit = () => {
+      if(!selectedPatientCpf || !editingItem) return;
+      editItem(selectedPatientCpf, editingItem.id, editingItem.type, editingItem.data);
+      setEditingItem(null);
+      setTick(t => t + 1);
   };
 
   const handleUpdateGlobal = () => {
@@ -98,6 +137,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       setMsgContent('');
       alert("Mensagem enviada para o paciente.");
       setTick(t => t + 1);
+  };
+
+  const handleRegisterPatient = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!newPatient.name || !newPatient.cpf || !newPatient.precCp) {
+          alert("Preencha os campos obrigatórios.");
+          return;
+      }
+      if (newPatient.type === 'DEPENDENTE' && !newPatient.holderName) {
+          alert("Para dependentes, o nome do titular é obrigatório.");
+          return;
+      }
+
+      const result = registerPatient(newPatient as Patient);
+      if (result.success) {
+          alert("Paciente cadastrado com sucesso! A senha inicial são os números do CPF.");
+          setIsRegisteringPatient(false);
+          setNewPatient({ name: '', cpf: '', birthDate: '', precCp: '', type: 'TITULAR', holderName: '', om: 'CIA CMDO' });
+          setTick(t => t + 1);
+      } else {
+          alert("Erro: " + result.message);
+      }
   };
 
   return (
@@ -184,9 +245,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
         {/* Search & Selection View */}
         {!activePatientData ? (
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
-                <div className="mb-8 text-center md:text-left">
-                    <h2 className="text-2xl font-bold text-slate-800">Diretório de Pacientes</h2>
-                    <p className="text-slate-500 mt-1">Localize um paciente para gerenciar solicitações e atualizações de status.</p>
+                <div className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
+                    <div className="text-center md:text-left">
+                        <h2 className="text-2xl font-bold text-slate-800">Diretório de Pacientes</h2>
+                        <p className="text-slate-500 mt-1">Localize um paciente ou cadastre um novo.</p>
+                    </div>
+                    <button 
+                        onClick={() => setIsRegisteringPatient(true)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-all flex items-center gap-2"
+                    >
+                        <UserPlus className="w-5 h-5" />
+                        Novo Paciente
+                    </button>
                 </div>
 
                 <div className="relative max-w-2xl mx-auto md:mx-0">
@@ -254,7 +324,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                             </div>
                             <div>
                                 <h1 className="text-2xl font-bold text-slate-800">{activePatientData.profile.name}</h1>
-                                <p className="text-slate-500 font-mono text-sm">{activePatientData.profile.cpf}</p>
+                                <div className="flex gap-4 text-sm text-slate-500 mt-1">
+                                    <span className="font-mono">{activePatientData.profile.cpf}</span>
+                                    {activePatientData.profile.om && (
+                                        <span className="bg-slate-200 px-2 rounded text-xs font-bold flex items-center">{activePatientData.profile.om}</span>
+                                    )}
+                                    {activePatientData.profile.type && (
+                                        <span className={`px-2 rounded text-xs font-bold flex items-center ${activePatientData.profile.type === 'TITULAR' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                                            {activePatientData.profile.type}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
                         <div className="flex gap-3">
@@ -368,14 +448,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                             )}
                                         </div>
                                         <div className="space-y-1">
-                                            <label className="text-xs font-semibold text-gray-500 uppercase">Médico Solicitante</label>
-                                            <input 
-                                                required
-                                                type="text" 
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none"
-                                                value={newItemDoctor}
-                                                onChange={e => setNewItemDoctor(e.target.value)}
-                                            />
+                                            <label className="text-xs font-semibold text-gray-500 uppercase">
+                                                {role === 'exam_manager' ? 'Laboratório Realizado' : 'Dia do Cadastro'}
+                                            </label>
+                                            {role === 'guide_manager' ? (
+                                                <input 
+                                                    required
+                                                    type="date" 
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none"
+                                                    value={newItemDoctor}
+                                                    onChange={e => setNewItemDoctor(e.target.value)}
+                                                />
+                                            ) : (
+                                                <input 
+                                                    required
+                                                    type="text" 
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none"
+                                                    value={newItemDoctor}
+                                                    onChange={e => setNewItemDoctor(e.target.value)}
+                                                />
+                                            )}
                                         </div>
                                         {role === 'guide_manager' && (
                                              <div className="space-y-1">
@@ -401,6 +493,66 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                         </div>
                     )}
 
+                     {/* Edit Item Modal */}
+                     {editingItem && (
+                        <div className="bg-amber-50 border-b border-amber-200 p-6 animate-in slide-in-from-top-2">
+                             <div className="max-w-3xl mx-auto bg-white p-6 rounded-xl shadow-sm border border-amber-200">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h4 className="font-bold text-slate-800">Editar {editingItem.type === 'exam' ? 'Exame' : 'Guia'}</h4>
+                                    <button onClick={() => setEditingItem(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+                                </div>
+                                <div className="space-y-4">
+                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">
+                                                {editingItem.type === 'exam' ? 'Nome do Exame' : 'Especialidade'}
+                                            </label>
+                                            <input 
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                                value={editingItem.type === 'exam' ? editingItem.data.name : editingItem.data.specialty}
+                                                onChange={e => setEditingItem({
+                                                    ...editingItem, 
+                                                    data: { ...editingItem.data, [editingItem.type === 'exam' ? 'name' : 'specialty']: e.target.value }
+                                                })}
+                                            />
+                                        </div>
+                                        <div>
+                                             <label className="text-xs font-semibold text-gray-500 uppercase block mb-1">
+                                                {editingItem.type === 'exam' ? 'Laboratório' : 'Data do Cadastro'}
+                                             </label>
+                                             {editingItem.type === 'guide' ? (
+                                                  <input 
+                                                    type="date"
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                                    value={editingItem.data.dateRequested} // Assuming we edit the date here
+                                                    onChange={e => setEditingItem({
+                                                        ...editingItem,
+                                                        data: { ...editingItem.data, dateRequested: e.target.value }
+                                                    })}
+                                                />
+                                             ) : (
+                                                <input 
+                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                                    value={editingItem.data.doctor}
+                                                    onChange={e => setEditingItem({
+                                                        ...editingItem, 
+                                                        data: { ...editingItem.data, doctor: e.target.value }
+                                                    })}
+                                                />
+                                             )}
+                                        </div>
+                                     </div>
+                                     <div className="flex justify-end gap-2 pt-2">
+                                         <button onClick={() => setEditingItem(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg text-sm">Cancelar</button>
+                                         <button onClick={handleSaveEdit} className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm flex items-center gap-2">
+                                             <Save className="w-4 h-4" /> Salvar Alterações
+                                         </button>
+                                     </div>
+                                </div>
+                             </div>
+                        </div>
+                    )}
+
                     {/* Items List */}
                     <div className="p-6">
                         <div className="flex items-center gap-2 mb-4 text-slate-800 font-semibold">
@@ -422,8 +574,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                     name={exam.name} 
                                     status={exam.status}
                                     type="exam"
-                                    meta={`Dr(a). ${exam.doctor} • ${exam.dateRequested}`}
+                                    meta={`Laboratório: ${exam.doctor} • ${exam.dateRequested}`}
                                     onStatusChange={(s) => handleStatusChange('exam', exam.id, s)}
+                                    onDelete={() => handleDeleteItem(exam.id, 'exam')}
+                                    onEdit={() => handleStartEdit(exam, 'exam')}
                                 />
                             ))}
                             
@@ -433,10 +587,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                     name={`Guia: ${guide.specialty}`} 
                                     status={guide.status}
                                     type="guide"
-                                    meta={`Dr(a). ${guide.doctor} • Prazo: ${guide.deadline}`}
+                                    meta={`Cadastro: ${guide.dateRequested} • Prazo: ${guide.deadline}`}
                                     onStatusChange={(s) => handleStatusChange('guide', guide.id, s)}
                                     attachmentUrl={guide.attachmentUrl}
                                     onViewAttachment={() => setViewingAttachment(guide.attachmentUrl || null)}
+                                    onDelete={() => handleDeleteItem(guide.id, 'guide')}
+                                    onEdit={() => handleStartEdit(guide, 'guide')}
                                 />
                             ))}
                         </div>
@@ -445,6 +601,125 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
             </div>
         )}
       </div>
+
+      {/* Patient Registration Modal */}
+      {isRegisteringPatient && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+              <div className="bg-white rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl">
+                  <div className="bg-slate-50 p-6 border-b border-gray-200 flex justify-between items-center">
+                      <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                          <UserPlus className="w-6 h-6 text-emerald-600" />
+                          Cadastro de Paciente
+                      </h3>
+                      <button onClick={() => setIsRegisteringPatient(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                          <X className="w-6 h-6" />
+                      </button>
+                  </div>
+                  <form onSubmit={handleRegisterPatient} className="p-8 space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-1.5">
+                              <label className="text-sm font-semibold text-slate-700">Nome Completo</label>
+                              <input 
+                                  required
+                                  type="text" 
+                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                                  value={newPatient.name}
+                                  onChange={e => setNewPatient({...newPatient, name: e.target.value})}
+                              />
+                          </div>
+                          <div className="space-y-1.5">
+                              <label className="text-sm font-semibold text-slate-700">CPF</label>
+                              <input 
+                                  required
+                                  type="text" 
+                                  placeholder="000.000.000-00"
+                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                                  value={newPatient.cpf}
+                                  onChange={e => setNewPatient({...newPatient, cpf: e.target.value})}
+                              />
+                          </div>
+                          <div className="space-y-1.5">
+                              <label className="text-sm font-semibold text-slate-700">Data de Nascimento</label>
+                              <input 
+                                  required
+                                  type="date" 
+                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                                  value={newPatient.birthDate}
+                                  onChange={e => setNewPatient({...newPatient, birthDate: e.target.value})}
+                              />
+                          </div>
+                          <div className="space-y-1.5">
+                              <label className="text-sm font-semibold text-slate-700">PREC CP</label>
+                              <input 
+                                  required
+                                  type="text" 
+                                  placeholder="Apenas números"
+                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                                  value={newPatient.precCp}
+                                  onChange={e => {
+                                      const val = e.target.value.replace(/\D/g, '');
+                                      setNewPatient({...newPatient, precCp: val});
+                                  }}
+                              />
+                          </div>
+                          <div className="space-y-1.5">
+                              <label className="text-sm font-semibold text-slate-700">Tipo de Paciente</label>
+                              <select 
+                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                                  value={newPatient.type}
+                                  onChange={e => setNewPatient({...newPatient, type: e.target.value as PatientType})}
+                              >
+                                  <option value="TITULAR">Titular</option>
+                                  <option value="DEPENDENTE">Dependente</option>
+                              </select>
+                          </div>
+                          <div className="space-y-1.5">
+                              <label className="text-sm font-semibold text-slate-700">OM de Vinculação</label>
+                              <select 
+                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+                                  value={newPatient.om}
+                                  onChange={e => setNewPatient({...newPatient, om: e.target.value as MilitaryOrganization})}
+                              >
+                                  <option value="CIA CMDO">CIA CMDO</option>
+                                  <option value="6ª CIA COM">6ª CIA COM</option>
+                                  <option value="COMANDO DA BRIGADA">COMANDO DA BRIGADA</option>
+                                  <option value="PEL PE">PEL PE</option>
+                              </select>
+                          </div>
+                      </div>
+
+                      {newPatient.type === 'DEPENDENTE' && (
+                          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 animate-in fade-in">
+                               <label className="text-sm font-semibold text-slate-700 block mb-1.5">Nome Completo do Titular</label>
+                               <input 
+                                  required
+                                  type="text" 
+                                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                                  value={newPatient.holderName}
+                                  onChange={e => setNewPatient({...newPatient, holderName: e.target.value})}
+                              />
+                          </div>
+                      )}
+
+                      <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                          <button 
+                              type="button" 
+                              onClick={() => setIsRegisteringPatient(false)}
+                              className="px-6 py-2.5 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors"
+                          >
+                              Cancelar
+                          </button>
+                          <button 
+                              type="submit" 
+                              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium shadow-sm transition-colors flex items-center gap-2"
+                          >
+                              <Check className="w-5 h-5" /> Confirmar Cadastro
+                          </button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      )}
 
       {/* Attachment Modal */}
       {viewingAttachment && (
@@ -499,8 +774,10 @@ const ItemManager: React.FC<{
     meta: string, 
     onStatusChange: (s: Status) => void,
     attachmentUrl?: string,
-    onViewAttachment?: () => void
-}> = ({ name, status, type, meta, onStatusChange, attachmentUrl, onViewAttachment }) => {
+    onViewAttachment?: () => void,
+    onDelete: () => void,
+    onEdit: () => void
+}> = ({ name, status, type, meta, onStatusChange, attachmentUrl, onViewAttachment, onDelete, onEdit }) => {
     
     const getStatusColor = (s: Status) => {
         switch(s) {
@@ -512,10 +789,10 @@ const ItemManager: React.FC<{
         }
     };
 
-    const getStatusLabel = (s: Status) => {
+    const getStatusLabel = (s: Status, type: 'exam' | 'guide') => {
         switch(s) {
             case Status.READY: return 'Pronto';
-            case Status.PROCESSING: return 'Em Análise';
+            case Status.PROCESSING: return type === 'guide' ? 'Em Confecção' : 'Em Análise';
             case Status.PENDING: return 'Pendente';
             case Status.DELIVERED: return 'Entregue';
             default: return s;
@@ -523,12 +800,12 @@ const ItemManager: React.FC<{
     }
 
     return (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-shadow hover:shadow-sm">
-            <div>
+        <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-shadow hover:shadow-sm group">
+            <div className="flex-grow">
                 <div className="flex items-center gap-3">
                     <h4 className="font-bold text-slate-800">{name}</h4>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border ${getStatusColor(status)}`}>
-                        {getStatusLabel(status)}
+                        {getStatusLabel(status, type)}
                     </span>
                     {attachmentUrl && (
                         <button 
@@ -542,35 +819,54 @@ const ItemManager: React.FC<{
                 <p className="text-sm text-slate-400 mt-1">{meta}</p>
             </div>
             
-            <div className="flex items-center gap-1 bg-gray-50 p-1.5 rounded-lg border border-gray-200 self-start lg:self-center">
-                <StatusButton 
-                    active={status === Status.PENDING} 
-                    onClick={() => onStatusChange(Status.PENDING)}
-                    icon={Clock}
-                    label="Pendente"
-                    colorClass="text-slate-600 bg-white shadow-sm ring-1 ring-slate-200"
-                />
-                <StatusButton 
-                    active={status === Status.PROCESSING} 
-                    onClick={() => onStatusChange(Status.PROCESSING)}
-                    icon={RefreshCw}
-                    label="Análise"
-                    colorClass="text-amber-600 bg-white shadow-sm ring-1 ring-amber-200"
-                />
-                <StatusButton 
-                    active={status === Status.READY} 
-                    onClick={() => onStatusChange(Status.READY)}
-                    icon={Check}
-                    label="Pronto"
-                    colorClass="text-emerald-600 bg-white shadow-sm ring-1 ring-emerald-200"
-                />
-                 <StatusButton 
-                    active={status === Status.DELIVERED} 
-                    onClick={() => onStatusChange(Status.DELIVERED)}
-                    icon={Truck}
-                    label="Entregue"
-                    colorClass="text-blue-600 bg-white shadow-sm ring-1 ring-blue-200"
-                />
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto mt-3 lg:mt-0">
+                <div className="flex items-center gap-1 bg-gray-50 p-1.5 rounded-lg border border-gray-200">
+                    <StatusButton 
+                        active={status === Status.PENDING} 
+                        onClick={() => onStatusChange(Status.PENDING)}
+                        icon={Clock}
+                        label="Pendente"
+                        colorClass="text-slate-600 bg-white shadow-sm ring-1 ring-slate-200"
+                    />
+                    <StatusButton 
+                        active={status === Status.PROCESSING} 
+                        onClick={() => onStatusChange(Status.PROCESSING)}
+                        icon={RefreshCw}
+                        label={type === 'guide' ? 'Em Confecção' : 'Em Análise'}
+                        colorClass="text-amber-600 bg-white shadow-sm ring-1 ring-amber-200"
+                    />
+                    <StatusButton 
+                        active={status === Status.READY} 
+                        onClick={() => onStatusChange(Status.READY)}
+                        icon={Check}
+                        label="Pronto"
+                        colorClass="text-emerald-600 bg-white shadow-sm ring-1 ring-emerald-200"
+                    />
+                     <StatusButton 
+                        active={status === Status.DELIVERED} 
+                        onClick={() => onStatusChange(Status.DELIVERED)}
+                        icon={Truck}
+                        label="Entregue"
+                        colorClass="text-blue-600 bg-white shadow-sm ring-1 ring-blue-200"
+                    />
+                </div>
+                
+                <div className="flex items-center gap-1 pl-2 border-l border-gray-100">
+                    <button 
+                        onClick={onEdit}
+                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                        title="Editar"
+                    >
+                        <Edit className="w-4 h-4" />
+                    </button>
+                    <button 
+                        onClick={onDelete}
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Excluir"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </div>
             </div>
         </div>
     )

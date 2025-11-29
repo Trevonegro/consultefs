@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Activity, LogOut, User, Menu, X, FilePlus, Bell, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, FileText, Activity, LogOut, User, Menu, X, FilePlus, Bell, MessageSquare, UserCog } from 'lucide-react';
 import { loginUser, acknowledgeItem, requestGuide, getGlobalAnnouncement } from './services/mockData';
 import { Patient, Exam, Guide, Notification, User as UserType } from './types';
 import Login from './components/Login';
@@ -9,6 +9,7 @@ import ExamList from './components/ExamList';
 import GuideList from './components/GuideList';
 import RequestGuide from './components/RequestGuide';
 import AdminDashboard from './components/AdminDashboard';
+import ProfileSettings from './components/ProfileSettings';
 
 interface AppState {
   user: UserType;
@@ -135,6 +136,7 @@ const App: React.FC = () => {
                 <Route path="/exames" element={<ExamList exams={appState.patientData!.exams} onAcknowledge={(id) => handleAcknowledge(id, 'exam')} />} />
                 <Route path="/guias" element={<GuideList guides={appState.patientData!.guides} onAcknowledge={(id) => handleAcknowledge(id, 'guide')} />} />
                 <Route path="/solicitar" element={<RequestGuide onSubmit={handleRequestGuide} />} />
+                <Route path="/perfil" element={<ProfileSettings patient={appState.patientData!.profile} />} />
                 <Route path="*" element={<Navigate to="/" />} />
              </Routes>
           </main>
@@ -234,6 +236,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, onLogout }) => {
     { icon: Activity, label: 'Meus Exames', path: '/exames' },
     { icon: FileText, label: 'Minhas Guias', path: '/guias' },
     { icon: FilePlus, label: 'Solicitar Guia', path: '/solicitar' },
+    { icon: UserCog, label: 'Meu Perfil', path: '/perfil' },
   ];
 
   return (

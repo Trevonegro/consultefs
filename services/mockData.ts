@@ -1,8 +1,9 @@
-import { Patient, Exam, Guide, Status, Notification, User } from '../types';
+import { Patient, Exam, Guide, Status, Notification, User, PatientType, MilitaryOrganization } from '../types';
 
 // --- DATABASE OF LABORATORY EXAMS ---
 // A comprehensive list of common laboratory exams for the manager to select from.
 export const LAB_EXAMS_DATABASE = [
+  "TODOS OS SEUS EXAMES ESTÃO PRONTOS", // New option requested
   "Hemograma Completo",
   "Glicemia em Jejum",
   "Colesterol Total",
@@ -64,8 +65,8 @@ export const LAB_EXAMS_DATABASE = [
 
 // Initial Mock Data
 const examHistory: Exam[] = [
-  { id: '101', name: 'Hemograma Completo', dateRequested: '2023-10-15', status: Status.DELIVERED, doctor: 'Dr. Silva', category: 'Sangue', acknowledged: true },
-  { id: '102', name: 'Colesterol Total', dateRequested: '2023-10-15', status: Status.DELIVERED, doctor: 'Dr. Silva', category: 'Sangue', resultValue: 180, resultUnit: 'mg/dL', acknowledged: true },
+  { id: '101', name: 'Hemograma Completo', dateRequested: '2023-10-15', status: Status.DELIVERED, doctor: 'Laboratório Central', category: 'Sangue', acknowledged: true },
+  { id: '102', name: 'Colesterol Total', dateRequested: '2023-10-15', status: Status.DELIVERED, doctor: 'Laboratório Central', category: 'Sangue', resultValue: 180, resultUnit: 'mg/dL', acknowledged: true },
 ];
 
 // --- SYSTEM STATE ---
@@ -76,11 +77,19 @@ let mockPatients: Record<string, { password: string; profile: Patient; exams: Ex
   // Scenario 1: Exams Ready
   '111.111.111-11': {
     password: 'paciente123',
-    profile: { id: 'p1', name: 'Maria Oliveira', cpf: '111.111.111-11', email: 'maria@example.com' },
+    profile: { 
+        id: 'p1', 
+        name: 'Maria Oliveira', 
+        cpf: '111.111.111-11', 
+        email: 'maria@example.com',
+        type: 'TITULAR',
+        om: 'CIA CMDO',
+        precCp: '123456789'
+    },
     exams: [
       ...examHistory,
-      { id: 'e1', name: 'Ressonância Magnética Joelho', dateRequested: '2024-05-18', status: Status.READY, doctor: 'Dr. House', category: 'Imagem', acknowledged: false },
-      { id: 'e2', name: 'Vitamina D (25-Hidroxi)', dateRequested: '2024-05-20', status: Status.READY, doctor: 'Dra. Ana', category: 'Sangue', acknowledged: false },
+      { id: 'e1', name: 'Ressonância Magnética Joelho', dateRequested: '2024-05-18', status: Status.READY, doctor: 'Imagem Lab', category: 'Imagem', acknowledged: false },
+      { id: 'e2', name: 'Vitamina D (25-Hidroxi)', dateRequested: '2024-05-20', status: Status.READY, doctor: 'Laboratório Central', category: 'Sangue', acknowledged: false },
     ],
     guides: [
       { id: 'g1', specialty: 'Cardiologia', doctor: 'Dr. Silva', dateRequested: '2024-05-01', deadline: '2024-05-15', status: Status.READY, qrCodeData: 'GUIDE-001', acknowledged: false }
@@ -92,10 +101,10 @@ let mockPatients: Record<string, { password: string; profile: Patient; exams: Ex
   // Scenario 2: Processing
   '222.222.222-22': {
     password: 'paciente123',
-    profile: { id: 'p2', name: 'João Santos', cpf: '222.222.222-22', email: 'joao@example.com' },
+    profile: { id: 'p2', name: 'João Santos', cpf: '222.222.222-22', email: 'joao@example.com', type: 'TITULAR', om: 'PEL PE', precCp: '987654321' },
     exams: [
-      { id: 'e3', name: 'Ecocardiograma', dateRequested: '2024-05-21', status: Status.PROCESSING, doctor: 'Dr. Mendes', category: 'Imagem' },
-      { id: 'e4', name: 'Teste Ergométrico', dateRequested: '2024-05-21', status: Status.PROCESSING, doctor: 'Dr. Mendes', category: 'Cardio' }
+      { id: 'e3', name: 'Ecocardiograma', dateRequested: '2024-05-21', status: Status.PROCESSING, doctor: 'Imagem Lab', category: 'Imagem' },
+      { id: 'e4', name: 'Teste Ergométrico', dateRequested: '2024-05-21', status: Status.PROCESSING, doctor: 'Cardio Lab', category: 'Cardio' }
     ],
     guides: [],
     notifications: []
@@ -103,7 +112,7 @@ let mockPatients: Record<string, { password: string; profile: Patient; exams: Ex
   // Scenario 3: Waiting for Guide
   '333.333.333-33': {
     password: 'paciente123',
-    profile: { id: 'p3', name: 'Carlos Pereira', cpf: '333.333.333-33', email: 'carlos@example.com' },
+    profile: { id: 'p3', name: 'Carlos Pereira', cpf: '333.333.333-33', email: 'carlos@example.com', type: 'DEPENDENTE', holderName: 'João Santos', om: 'PEL PE' },
     exams: [],
     guides: [
       { id: 'g2', specialty: 'Oftalmologia', doctor: 'Dra. Costa', dateRequested: '2024-05-22', deadline: '2024-05-30', status: Status.PENDING },
@@ -179,6 +188,37 @@ export const getPatientDetails = (cpf: string) => {
     } : null;
 };
 
+// Register New Patient
+export const registerPatient = (patientData: Patient, password?: string) => {
+    // Basic validation to check if already exists
+    if (mockPatients[patientData.cpf]) {
+        return { success: false, message: "CPF já cadastrado." };
+    }
+
+    mockPatients[patientData.cpf] = {
+        // Use provided password or default to numeric CPF if none provided (admin registration)
+        password: password || patientData.cpf.replace(/\D/g, ''), 
+        profile: {
+            ...patientData,
+            id: `p-${Date.now()}`,
+            email: `${patientData.name.split(' ')[0].toLowerCase()}@sistema.com` // Auto-gen email placeholder
+        },
+        exams: [],
+        guides: [],
+        notifications: []
+    };
+    return { success: true };
+};
+
+// Function to change password
+export const changePatientPassword = (cpf: string, newPassword: string) => {
+    if (mockPatients[cpf]) {
+        mockPatients[cpf].password = newPassword;
+        return true;
+    }
+    return false;
+};
+
 // Global Announcement Functions
 export const getGlobalAnnouncement = () => globalSystemMessage;
 
@@ -240,14 +280,16 @@ export const addExamToPatient = (cpf: string, examName: string, doctor: string) 
   return null;
 };
 
-export const addGuideToPatient = (cpf: string, specialty: string, doctor: string, deadline: string) => {
+// Updated: doctor field here is now serving as Date Created or generic doctor name depending on context
+// UI requests "Dia do Cadastro" so we will use dateRequested primarily
+export const addGuideToPatient = (cpf: string, specialty: string, dateRegistered: string, deadline: string) => {
   const patient = mockPatients[cpf];
   if (patient) {
     const newGuide: Guide = {
       id: `new-g-${Date.now()}`,
       specialty: specialty,
-      doctor: doctor,
-      dateRequested: new Date().toISOString().split('T')[0],
+      doctor: 'Solicitação Interna', // Generic placeholder as UI asks for Date instead of Doctor
+      dateRequested: dateRegistered, // This is the "Dia do Cadastro"
       deadline: deadline,
       status: Status.PENDING,
       acknowledged: false
@@ -257,6 +299,34 @@ export const addGuideToPatient = (cpf: string, specialty: string, doctor: string
   }
   return null;
 };
+
+// --- DELETE & EDIT FUNCTIONS ---
+
+export const deleteItem = (cpf: string, itemId: string, type: 'exam' | 'guide') => {
+    const patient = mockPatients[cpf];
+    if (patient) {
+        if (type === 'exam') {
+            patient.exams = patient.exams.filter(e => e.id !== itemId);
+        } else {
+            patient.guides = patient.guides.filter(g => g.id !== itemId);
+        }
+        return true;
+    }
+    return false;
+};
+
+export const editItem = (cpf: string, itemId: string, type: 'exam' | 'guide', data: any) => {
+    const patient = mockPatients[cpf];
+    if (patient) {
+        if (type === 'exam') {
+             patient.exams = patient.exams.map(e => e.id === itemId ? { ...e, ...data } : e);
+        } else {
+             patient.guides = patient.guides.map(g => g.id === itemId ? { ...g, ...data } : g);
+        }
+        return true;
+    }
+    return false;
+}
 
 // New function to handle Patient Guide Requests
 export const requestGuide = (cpf: string, data: { specialty: string, doctor: string, attachmentUrl?: string }) => {
