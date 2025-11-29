@@ -1,0 +1,5 @@
+{
+  "name": "CONSULTE FS",
+  "description": "Sistema de Acompanhamento de Exames e Guias para Pacientes. Permite consulta de resultados, status de guias, agendamentos e visualização de histórico médico.",
+  "requestFramePermissions": []
+}
