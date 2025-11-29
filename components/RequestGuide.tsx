@@ -1,13 +1,15 @@
+
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, Check, AlertCircle, X, Image as ImageIcon } from 'lucide-react';
+import { Upload, FileText, Check, AlertCircle, X, Image as ImageIcon, Hash } from 'lucide-react';
 
 interface RequestGuideProps {
-  onSubmit: (data: { specialty: string; doctor: string; attachmentUrl: string }) => void;
+  onSubmit: (data: { specialty: string; doctor: string; attachmentUrl: string; precCp: string }) => void;
 }
 
 const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
   const [specialty, setSpecialty] = useState('');
   const [doctor, setDoctor] = useState('');
+  const [precCp, setPrecCp] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -49,10 +51,16 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
     }
   }
 
+  const handlePrecCpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Only allow numbers
+    const val = e.target.value.replace(/\D/g, '');
+    setPrecCp(val);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!file || !specialty || !doctor) {
+    if (!file || !specialty || !doctor || !precCp) {
         alert("Por favor, preencha todos os campos e anexe a foto do pedido.");
         return;
     }
@@ -64,6 +72,7 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
         onSubmit({
             specialty,
             doctor,
+            precCp,
             attachmentUrl: previewUrl || '' // In a real app, this would be the URL returned by the backend upload
         });
         setIsSubmitting(false);
@@ -71,6 +80,7 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
         // Reset form
         setSpecialty('');
         setDoctor('');
+        setPrecCp('');
         setFile(null);
         setPreviewUrl(null);
     }, 1500);
@@ -133,6 +143,23 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
                         onChange={(e) => setDoctor(e.target.value)}
                         required
                     />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm font-semibold text-gray-600 dark:text-military-400 flex items-center gap-1">
+                        PREC CP 
+                        <span className="text-xs font-normal text-gray-400">(Apenas Números)</span>
+                    </label>
+                    <div className="relative">
+                        <Hash className="absolute left-4 top-3.5 w-5 h-5 text-gray-400" />
+                        <input 
+                            type="text"
+                            placeholder="Digite seu PREC CP"
+                            className="w-full pl-11 pr-4 py-3 border border-gray-300 dark:border-military-600 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition-all bg-white dark:bg-military-950 text-gray-800 dark:text-military-100"
+                            value={precCp}
+                            onChange={handlePrecCpChange}
+                            required
+                        />
+                    </div>
                 </div>
             </div>
 

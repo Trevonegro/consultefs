@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { Patient, Exam, Guide, Status } from '../types';
-import { Activity, FileText, Clock, FilePlus, AlertTriangle, Smile } from 'lucide-react';
+import { Activity, FileText, Clock, FilePlus, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface DashboardProps {
@@ -44,7 +45,7 @@ const Dashboard: React.FC<DashboardProps> = ({ patient, exams, guides, globalAnn
         </div>
 
         {/* Main Status Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {/* EXAMS STATUS */}
             <div className={`relative overflow-hidden rounded-2xl p-6 border transition-all duration-300 shadow-lg hover-scale animate-fade-up delay-100 ${readyExamsCount > 0 ? 'bg-white dark:bg-military-900 border-emerald-500/30' : 'bg-white dark:bg-military-900 border-gray-200 dark:border-military-700'}`}>
@@ -114,33 +115,6 @@ const Dashboard: React.FC<DashboardProps> = ({ patient, exams, guides, globalAnn
                         </div>
                     </div>
                 )}
-            </div>
-
-            {/* DENTAL CARD */}
-            <div className="relative overflow-hidden rounded-2xl p-6 border bg-white dark:bg-military-900 border-gray-200 dark:border-military-700 shadow-lg hover-scale transition-all animate-fade-up delay-300">
-                <div className="absolute top-0 right-0 p-4 opacity-[0.03]">
-                    <Smile className="w-32 h-32 text-gray-900 dark:text-military-100" />
-                </div>
-                
-                <div className="flex justify-between items-start mb-6 relative z-10">
-                    <div className="p-3 rounded-xl shadow-sm bg-purple-100 dark:bg-military-800 text-purple-600 dark:text-purple-400">
-                        <Smile className="w-8 h-8" />
-                    </div>
-                </div>
-                
-                <h3 className="text-lg font-bold text-gray-800 dark:text-military-100 mb-2 relative z-10">Odontologia</h3>
-                <p className="text-gray-500 dark:text-military-400 mb-6 relative z-10">
-                    Agende suas consultas e acompanhe tratamentos odontológicos.
-                </p>
-
-                <div className="relative z-10 grid grid-cols-1 gap-2">
-                    <Link to="/dentista/agendar" className="w-full block text-center bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 rounded-xl transition-colors shadow-md">
-                        Marcar Dentista
-                    </Link>
-                    <Link to="/dentista/meus-agendamentos" className="w-full block text-center bg-gray-100 dark:bg-military-800 hover:bg-gray-200 dark:hover:bg-military-700 text-gray-600 dark:text-military-200 font-semibold py-2.5 rounded-xl transition-colors">
-                        Meus Agendamentos
-                    </Link>
-                </div>
             </div>
         </div>
 

@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Activity, LogOut, User, Menu, X, FilePlus, Bell, MessageSquare, UserCog, Smile, Moon, Sun } from 'lucide-react';
+import { LayoutDashboard, FileText, Activity, LogOut, User, Menu, X, FilePlus, Bell, MessageSquare, UserCog, Sun, Moon } from 'lucide-react';
 import { loginUser, acknowledgeItem, requestGuide, getGlobalAnnouncement } from './services/mockData';
 import { Patient, Exam, Guide, Notification, User as UserType } from './types';
 import Login from './components/Login';
@@ -10,8 +11,6 @@ import GuideList from './components/GuideList';
 import RequestGuide from './components/RequestGuide';
 import AdminDashboard from './components/AdminDashboard';
 import ProfileSettings from './components/ProfileSettings';
-import DentalScheduler from './components/DentalScheduler';
-import DentalList from './components/DentalList';
 import Logo from './components/Logo';
 
 interface AppState {
@@ -21,7 +20,6 @@ interface AppState {
     exams: Exam[];
     guides: Guide[];
     notifications: Notification[];
-    dentalAppointments: any[];
   };
 }
 
@@ -53,8 +51,8 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const handleLogin = (credential: string, password: string) => {
-    const result = loginUser(credential, password);
+  const handleLogin = async (credential: string, password: string) => {
+    const result = await loginUser(credential, password);
     if (result) {
       setAppState({
         user: result.user,
@@ -69,19 +67,22 @@ const App: React.FC = () => {
     setAppState(null);
   };
 
-  const handleAcknowledge = (id: string, type: 'exam' | 'guide') => {
+  const handleAcknowledge = async (id: string, type: 'exam' | 'guide') => {
     if (appState?.user.cpf) {
-        const updatedData = acknowledgeItem(appState.user.cpf, id, type);
+        const updatedData = await acknowledgeItem(appState.user.cpf, id, type);
         if (updatedData) {
             setAppState(prev => prev ? { ...prev, patientData: updatedData } : null);
         }
     }
   };
 
-  const handleRequestGuide = (data: { specialty: string; doctor: string; attachmentUrl: string }) => {
+  const handleRequestGuide = (data: { specialty: string; doctor: string; attachmentUrl: string; precCp: string }) => {
      if (appState?.user.cpf) {
          requestGuide(appState.user.cpf, data);
-         // Simulate re-fetch
+         // Simulate re-fetch logic (in a real app, we'd refetch from server)
+         // For mock, simply re-setting state won't fetch new data unless we call getPatientDetails again
+         // But for this UI flow, we rely on the component navigation or simple updates.
+         // Let's do a quick hack to force update by spreading state
          setAppState(prev => prev ? { ...prev } : null);
      }
   };
@@ -90,8 +91,8 @@ const App: React.FC = () => {
     return <Login onLogin={handleLogin} theme={theme} toggleTheme={toggleTheme} />;
   }
 
-  // Admin View (Exams, Guides, or Dentist Manager)
-  if (appState.user.role === 'exam_manager' || appState.user.role === 'guide_manager' || appState.user.role === 'dentist_manager') {
+  // Admin View (Exams or Guides Manager)
+  if (appState.user.role === 'exam_manager' || appState.user.role === 'guide_manager') {
       return (
         <div className="min-h-screen bg-gray-100 dark:bg-military-950 flex flex-col font-sans transition-colors duration-300">
            <header className="bg-white dark:bg-military-900 border-b border-gray-200 dark:border-military-700 h-16 px-6 flex justify-between items-center sticky top-0 z-20 shadow-sm transition-colors duration-300">
@@ -100,8 +101,7 @@ const App: React.FC = () => {
                   <div className="flex flex-col">
                       <span className="font-bold text-gray-800 dark:text-military-100 leading-tight">CONSULTE FS</span>
                       <span className="text-[10px] text-gray-500 dark:text-military-300 font-medium tracking-wider uppercase">
-                        {appState.user.role === 'exam_manager' ? 'Gestão de Exames' : 
-                         appState.user.role === 'guide_manager' ? 'Gestão de Guias' : 'Gestão Odontológica'}
+                        {appState.user.role === 'exam_manager' ? 'Gestão de Exames' : 'Gestão de Guias'}
                       </span>
                   </div>
                </div>
@@ -155,8 +155,6 @@ const App: React.FC = () => {
                 <Route path="/exames" element={<ExamList exams={appState.patientData!.exams} onAcknowledge={(id) => handleAcknowledge(id, 'exam')} />} />
                 <Route path="/guias" element={<GuideList guides={appState.patientData!.guides} onAcknowledge={(id) => handleAcknowledge(id, 'guide')} />} />
                 <Route path="/solicitar" element={<RequestGuide onSubmit={handleRequestGuide} />} />
-                <Route path="/dentista/agendar" element={<DentalScheduler cpf={appState.patientData!.profile.cpf} />} />
-                <Route path="/dentista/meus-agendamentos" element={<DentalList appointments={appState.patientData!.dentalAppointments || []} />} />
                 <Route path="/perfil" element={<ProfileSettings patient={appState.patientData!.profile} />} />
                 <Route path="*" element={<Navigate to="/" />} />
              </Routes>
@@ -263,7 +261,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, onLogout }) => {
     { icon: LayoutDashboard, label: 'Visão Geral', path: '/' },
     { icon: Activity, label: 'Meus Exames', path: '/exames' },
     { icon: FileText, label: 'Minhas Guias', path: '/guias' },
-    { icon: Smile, label: 'Dentista', path: '/dentista/meus-agendamentos' },
     { icon: FilePlus, label: 'Solicitar Guia', path: '/solicitar' },
     { icon: UserCog, label: 'Meu Perfil', path: '/perfil' },
   ];
@@ -287,7 +284,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen, onLogout }) => {
 
         <nav className="p-4 space-y-2 flex-1 mt-4">
           {menuItems.map((item) => {
-            const isActive = location.pathname === item.path || (item.path.includes('dentista') && location.pathname.includes('dentista'));
+            const isActive = location.pathname === item.path;
             const Icon = item.icon;
             return (
               <Link

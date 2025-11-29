@@ -7,7 +7,7 @@ export enum Status {
   CANCELED = 'CANCELED'      // Cancelado
 }
 
-export type Role = 'patient' | 'exam_manager' | 'guide_manager' | 'dentist_manager';
+export type Role = 'patient' | 'exam_manager' | 'guide_manager';
 
 export interface User {
   id: string;
@@ -56,16 +56,7 @@ export interface Guide {
   qrCodeData?: string;
   acknowledged?: boolean;
   attachmentUrl?: string; // URL/Base64 of the medical order photo
-}
-
-export interface DentalAppointment {
-  id: string;
-  dentist: string; // New field
-  procedure: string;
-  date: string;
-  time: string;
-  status: Status;
-  notes?: string;
+  precCp?: string; // Novo campo solicitado
 }
 
 export interface Notification {
@@ -75,6 +66,16 @@ export interface Notification {
   date: string;
   read: boolean;
   type: 'info' | 'success' | 'warning';
+}
+
+export interface DentalAppointment {
+  id: string;
+  patient_cpf: string;
+  procedure: string;
+  dentist: string;
+  date: string;
+  time: string;
+  status: Status;
 }
 
 // Stats for dashboard

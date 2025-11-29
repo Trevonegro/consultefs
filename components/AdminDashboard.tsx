@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
-import { getAllPatients, getPatientDetails, updateExamStatus, updateGuideStatus, updateDentalStatus, addExamToPatient, addGuideToPatient, getLabExamsDatabase, getGuideProceduresDatabase, getGlobalAnnouncement, setGlobalAnnouncement, sendPatientNotification, registerPatient, deleteItem, editItem, getDentistsDatabase } from '../services/mockData';
+import { getAllPatients, getPatientDetails, updateExamStatus, updateGuideStatus, addExamToPatient, addGuideToPatient, getLabExamsDatabase, getGuideProceduresDatabase, getGlobalAnnouncement, setGlobalAnnouncement, sendPatientNotification, registerPatient, deleteItem, editItem } from '../services/mockData';
 import { Status, Role, PatientType, MilitaryOrganization, Patient } from '../types';
-import { Search, User, Activity, FileText, Check, Truck, Clock, RefreshCw, Plus, X, ChevronRight, Users, ClipboardList, Paperclip, Megaphone, Send, MessageSquare, Trash2, Edit, Save, UserPlus, Shield, Smile, Calendar } from 'lucide-react';
+import { Search, User, Activity, FileText, Check, Truck, Clock, RefreshCw, Plus, X, ChevronRight, Users, ClipboardList, Paperclip, Megaphone, Send, MessageSquare, Trash2, Edit, Save, UserPlus, Loader2, KeyRound } from 'lucide-react';
 
 interface AdminDashboardProps {
   role: Role;
@@ -12,6 +13,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
   const [selectedPatientCpf, setSelectedPatientCpf] = useState<string | null>(null);
   const [viewingAttachment, setViewingAttachment] = useState<string | null>(null);
   
+  // Data State (Async handling)
+  const [allPatientsList, setAllPatientsList] = useState<Patient[]>([]);
+  const [activePatientData, setActivePatientData] = useState<any>(null);
+  const [isLoadingPatients, setIsLoadingPatients] = useState(true);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
   // Global Announcement State
   const [globalMsg, setGlobalMsg] = useState('');
   const [isEditingGlobal, setIsEditingGlobal] = useState(false);
@@ -28,7 +35,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
   const [newItemDeadline, setNewItemDeadline] = useState('');
 
   // Edit Item State
-  const [editingItem, setEditingItem] = useState<{id: string, type: 'exam' | 'guide' | 'dental', data: any} | null>(null);
+  const [editingItem, setEditingItem] = useState<{id: string, type: 'exam' | 'guide', data: any} | null>(null);
 
   // Patient Registration State
   const [isRegisteringPatient, setIsRegisteringPatient] = useState(false);
@@ -41,6 +48,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       holderName: '',
       om: 'CIA CMDO'
   });
+  const [newPatientPassword, setNewPatientPassword] = useState('');
 
   // Force re-render after update
   const [tick, setTick] = useState(0); 
@@ -48,8 +56,32 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
   // Get database of exams/guides
   const examDatabase = getLabExamsDatabase();
   const guideProceduresDatabase = getGuideProceduresDatabase();
-  const dentistsDatabase = getDentistsDatabase();
-  const allPatientsList = getAllPatients();
+
+  // Load patients on mount and update
+  useEffect(() => {
+    const fetchPatients = async () => {
+        setIsLoadingPatients(true);
+        const data = await getAllPatients();
+        setAllPatientsList(data);
+        setIsLoadingPatients(false);
+    };
+    fetchPatients();
+  }, [tick]);
+
+  // Load active patient details when selected
+  useEffect(() => {
+    const fetchDetails = async () => {
+        if (selectedPatientCpf) {
+            setIsLoadingDetails(true);
+            const data = await getPatientDetails(selectedPatientCpf);
+            setActivePatientData(data);
+            setIsLoadingDetails(false);
+        } else {
+            setActivePatientData(null);
+        }
+    };
+    fetchDetails();
+  }, [selectedPatientCpf, tick]);
 
   // Load initial global message
   useEffect(() => {
@@ -61,8 +93,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
     p.cpf.includes(searchTerm)
   );
 
-  const activePatientData = selectedPatientCpf ? getPatientDetails(selectedPatientCpf) : null;
-
   // Stats calculation
   const stats = {
       totalPatients: allPatientsList.length,
@@ -70,28 +100,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       completedItems: 45 // Placeholder
   };
 
-  const handleStatusChange = (type: 'exam' | 'guide' | 'dental', id: string, status: Status) => {
+  const handleStatusChange = async (type: 'exam' | 'guide', id: string, status: Status) => {
     if (!selectedPatientCpf) return;
     
     if (type === 'exam') {
-      updateExamStatus(selectedPatientCpf, id, status);
+      await updateExamStatus(selectedPatientCpf, id, status);
     } else if (type === 'guide') {
-      updateGuideStatus(selectedPatientCpf, id, status);
-    } else if (type === 'dental') {
-      updateDentalStatus(selectedPatientCpf, id, status);
+      await updateGuideStatus(selectedPatientCpf, id, status);
     }
     setTick(t => t + 1); // Refresh UI
   };
 
-  const handleAddItem = (e: React.FormEvent) => {
+  const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPatientCpf) return;
 
     if (role === 'exam_manager') {
-      addExamToPatient(selectedPatientCpf, newItemName, newItemDoctor);
+      await addExamToPatient(selectedPatientCpf, newItemName, newItemDoctor);
     } else if (role === 'guide_manager') {
       // newItemDoctor acts as Date Registered for guides per requirements
-      addGuideToPatient(selectedPatientCpf, newItemName, newItemDoctor, newItemDeadline);
+      await addGuideToPatient(selectedPatientCpf, newItemName, newItemDoctor, newItemDeadline);
     }
 
     // Reset and close
@@ -102,15 +130,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
     setTick(t => t + 1);
   };
 
-  const handleDeleteItem = (id: string, type: 'exam' | 'guide' | 'dental') => {
+  const handleDeleteItem = async (id: string, type: 'exam' | 'guide') => {
       if(!selectedPatientCpf) return;
-      if(window.confirm('Tem certeza que deseja excluir este item?')) {
-          deleteItem(selectedPatientCpf, id, type);
-          setTick(t => t + 1);
+      
+      const confirmDelete = window.confirm('ATENÇÃO: Tem certeza que deseja excluir permanentemente este item?');
+      
+      if(confirmDelete) {
+          setIsLoadingDetails(true); // Show loading to indicate processing
+          try {
+            await deleteItem(selectedPatientCpf, id, type);
+            // Force data refresh explicitly after deletion
+            setTick(t => t + 1); 
+          } catch (error) {
+            console.error("Erro ao excluir:", error);
+            alert("Houve um erro ao tentar excluir o item.");
+            setIsLoadingDetails(false);
+          }
       }
   };
 
-  const handleStartEdit = (item: any, type: 'exam' | 'guide' | 'dental') => {
+  const handleStartEdit = (item: any, type: 'exam' | 'guide') => {
       setEditingItem({
           id: item.id,
           type,
@@ -118,9 +157,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       });
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
       if(!selectedPatientCpf || !editingItem) return;
-      editItem(selectedPatientCpf, editingItem.id, editingItem.type, editingItem.data);
+      await editItem(selectedPatientCpf, editingItem.id, editingItem.type, editingItem.data);
       setEditingItem(null);
       setTick(t => t + 1);
   };
@@ -131,11 +170,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
     alert("Aviso geral atualizado com sucesso!");
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!selectedPatientCpf) return;
 
-      sendPatientNotification(selectedPatientCpf, msgTitle, msgContent);
+      await sendPatientNotification(selectedPatientCpf, msgTitle, msgContent);
       setIsMessaging(false);
       setMsgTitle('');
       setMsgContent('');
@@ -143,7 +182,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       setTick(t => t + 1);
   };
 
-  const handleRegisterPatient = (e: React.FormEvent) => {
+  const handleRegisterPatient = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!newPatient.name || !newPatient.cpf || !newPatient.precCp) {
           alert("Preencha os campos obrigatórios.");
@@ -154,11 +193,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
           return;
       }
 
-      const result = registerPatient(newPatient as Patient);
+      // Pass the password if provided, otherwise registerPatient handles the default
+      const result = await registerPatient(newPatient as Patient, newPatientPassword || undefined);
+      
       if (result.success) {
-          alert("Paciente cadastrado com sucesso! A senha inicial são os números do CPF.");
+          alert(`Paciente cadastrado com sucesso!\nSenha definida: ${newPatientPassword || 'Números do CPF'}`);
           setIsRegisteringPatient(false);
           setNewPatient({ name: '', cpf: '', birthDate: '', precCp: '', type: 'TITULAR', holderName: '', om: 'CIA CMDO' });
+          setNewPatientPassword('');
           setTick(t => t + 1);
       } else {
           alert("Erro: " + result.message);
@@ -167,7 +209,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
 
   const getRoleIcon = () => {
     switch(role) {
-        case 'dentist_manager': return Smile;
         case 'exam_manager': return Activity;
         case 'guide_manager': return FileText;
         default: return User;
@@ -176,7 +217,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
 
   const getRoleLabel = () => {
       switch(role) {
-          case 'dentist_manager': return 'Odontologia';
           case 'exam_manager': return 'Exames';
           case 'guide_manager': return 'Guias';
           default: return 'Geral';
@@ -245,7 +285,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                 <StatCard 
                     icon={Users} 
                     label="Total de Pacientes" 
-                    value={stats.totalPatients.toString()} 
+                    value={isLoadingPatients ? "..." : stats.totalPatients.toString()} 
                     color="bg-gray-800 dark:bg-military-600" 
                 />
                 <StatCard 
@@ -267,7 +307,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       <div className="flex-grow space-y-6">
         
         {/* Search & Selection View */}
-        {!activePatientData ? (
+        {!selectedPatientCpf ? (
             <div className="bg-white dark:bg-military-900 p-8 rounded-2xl shadow-sm border border-gray-200 dark:border-military-700 transition-colors">
                 <div className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="text-center md:text-left">
@@ -297,7 +337,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                 </div>
 
                 <div className="mt-8">
-                    {patients.length > 0 ? (
+                    {isLoadingPatients ? (
+                        <div className="flex justify-center py-12">
+                            <Loader2 className="w-8 h-8 animate-spin text-gray-400 dark:text-military-400" />
+                        </div>
+                    ) : patients.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {patients.map(p => (
                                 <button 
@@ -328,6 +372,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                         </div>
                     )}
                 </div>
+            </div>
+        ) : !activePatientData || isLoadingDetails ? (
+            <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+                <Loader2 className="w-10 h-10 animate-spin text-gray-400 dark:text-military-400 mb-4" />
+                <p className="text-gray-500 dark:text-military-300">Carregando dados do paciente...</p>
+                <button 
+                    onClick={() => setSelectedPatientCpf(null)}
+                    className="mt-4 text-sm text-gray-400 hover:text-gray-600 dark:text-military-500 dark:hover:text-military-300 underline"
+                >
+                    Cancelar
+                </button>
             </div>
         ) : (
             // Active Patient Management View
@@ -370,15 +425,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                 <MessageSquare className="w-4 h-4" />
                                 Mensagem
                             </button>
-                            {role !== 'dentist_manager' && (
-                                <button 
-                                    onClick={() => setIsAdding(true)}
-                                    className="bg-gray-900 dark:bg-military-100 hover:bg-gray-800 dark:hover:bg-white text-white dark:text-military-950 px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-all flex items-center gap-2"
-                                >
-                                    <Plus className="w-4 h-4" />
-                                    {role === 'exam_manager' ? 'Novo Exame' : 'Nova Guia'}
-                                </button>
-                            )}
+                            <button 
+                                onClick={() => setIsAdding(true)}
+                                className="bg-gray-900 dark:bg-military-100 hover:bg-gray-800 dark:hover:bg-white text-white dark:text-military-950 px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-all flex items-center gap-2"
+                            >
+                                <Plus className="w-4 h-4" />
+                                {role === 'exam_manager' ? 'Novo Exame' : 'Nova Guia'}
+                            </button>
                         </div>
                     </div>
 
@@ -455,6 +508,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                                         required
                                                         list="exam-options"
                                                         type="text" 
+                                                        placeholder="Digite o nome ou selecione..."
                                                         className="w-full px-3 py-2 bg-gray-50 dark:bg-military-800 border border-gray-300 dark:border-military-600 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 dark:focus:ring-military-500 outline-none text-gray-800 dark:text-military-100"
                                                         value={newItemName}
                                                         onChange={e => setNewItemName(e.target.value)}
@@ -474,6 +528,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                                         required
                                                         list="guide-options"
                                                         type="text" 
+                                                        placeholder="Digite a especialidade ou selecione..."
                                                         className="w-full px-3 py-2 bg-gray-50 dark:bg-military-800 border border-gray-300 dark:border-military-600 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 dark:focus:ring-military-500 outline-none text-gray-800 dark:text-military-100"
                                                         value={newItemName}
                                                         onChange={e => setNewItemName(e.target.value)}
@@ -537,7 +592,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                         <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-900/40 p-6 animate-in slide-in-from-top-2">
                              <div className="max-w-3xl mx-auto bg-white dark:bg-military-900 p-6 rounded-xl shadow-sm border border-amber-200 dark:border-amber-900/40">
                                 <div className="flex justify-between items-center mb-4">
-                                    <h4 className="font-bold text-gray-800 dark:text-military-100">Editar {editingItem.type === 'exam' ? 'Exame' : editingItem.type === 'guide' ? 'Guia' : 'Agendamento'}</h4>
+                                    <h4 className="font-bold text-gray-800 dark:text-military-100">Editar {editingItem.type === 'exam' ? 'Exame' : 'Guia'}</h4>
                                     <button onClick={() => setEditingItem(null)} className="text-gray-400 dark:text-military-300 hover:text-gray-600 dark:hover:text-military-100"><X className="w-5 h-5" /></button>
                                 </div>
                                 <div className="space-y-4">
@@ -545,14 +600,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                         {/* Name / Procedure Field */}
                                         <div>
                                             <label className="text-xs font-semibold text-gray-500 dark:text-military-400 uppercase block mb-1">
-                                                {editingItem.type === 'exam' ? 'Nome do Exame' : editingItem.type === 'guide' ? 'Especialidade' : 'Procedimento'}
+                                                {editingItem.type === 'exam' ? 'Nome do Exame' : 'Especialidade'}
                                             </label>
                                             <input 
                                                 className="w-full px-3 py-2 bg-gray-50 dark:bg-military-950 border border-gray-300 dark:border-military-600 rounded-lg text-sm text-gray-800 dark:text-military-100"
-                                                value={editingItem.type === 'dental' ? editingItem.data.procedure : (editingItem.type === 'exam' ? editingItem.data.name : editingItem.data.specialty)}
+                                                value={editingItem.type === 'exam' ? editingItem.data.name : editingItem.data.specialty}
                                                 onChange={e => setEditingItem({
                                                     ...editingItem, 
-                                                    data: { ...editingItem.data, [editingItem.type === 'dental' ? 'procedure' : (editingItem.type === 'exam' ? 'name' : 'specialty')]: e.target.value }
+                                                    data: { ...editingItem.data, [editingItem.type === 'exam' ? 'name' : 'specialty']: e.target.value }
                                                 })}
                                             />
                                         </div>
@@ -560,16 +615,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                         {/* Date / Doctor Field */}
                                         <div>
                                              <label className="text-xs font-semibold text-gray-500 dark:text-military-400 uppercase block mb-1">
-                                                {editingItem.type === 'exam' ? 'Laboratório' : editingItem.type === 'guide' ? 'Data do Cadastro' : 'Data'}
+                                                {editingItem.type === 'exam' ? 'Laboratório' : 'Data do Cadastro'}
                                              </label>
-                                             {editingItem.type === 'guide' || editingItem.type === 'dental' ? (
+                                             {editingItem.type === 'guide' ? (
                                                   <input 
                                                     type="date"
                                                     className="w-full px-3 py-2 bg-gray-50 dark:bg-military-950 border border-gray-300 dark:border-military-600 rounded-lg text-sm text-gray-800 dark:text-military-100 dark:[color-scheme:dark]"
-                                                    value={editingItem.type === 'dental' ? editingItem.data.date : editingItem.data.dateRequested}
+                                                    value={editingItem.data.dateRequested}
                                                     onChange={e => setEditingItem({
                                                         ...editingItem,
-                                                        data: { ...editingItem.data, [editingItem.type === 'dental' ? 'date' : 'dateRequested']: e.target.value }
+                                                        data: { ...editingItem.data, dateRequested: e.target.value }
                                                     })}
                                                 />
                                              ) : (
@@ -583,40 +638,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                                 />
                                              )}
                                         </div>
-
-                                        {/* Extra field for Dental Time and Dentist Name */}
-                                        {editingItem.type === 'dental' && (
-                                            <>
-                                                <div>
-                                                    <label className="text-xs font-semibold text-gray-500 dark:text-military-400 uppercase block mb-1">Horário</label>
-                                                    <input 
-                                                        type="time"
-                                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-military-950 border border-gray-300 dark:border-military-600 rounded-lg text-sm text-gray-800 dark:text-military-100 dark:[color-scheme:dark]"
-                                                        value={editingItem.data.time}
-                                                        onChange={e => setEditingItem({
-                                                            ...editingItem,
-                                                            data: { ...editingItem.data, time: e.target.value }
-                                                        })}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="text-xs font-semibold text-gray-500 dark:text-military-400 uppercase block mb-1">Dentista</label>
-                                                    <input 
-                                                        list="dentist-options-edit"
-                                                        type="text"
-                                                        className="w-full px-3 py-2 bg-gray-50 dark:bg-military-950 border border-gray-300 dark:border-military-600 rounded-lg text-sm text-gray-800 dark:text-military-100"
-                                                        value={editingItem.data.dentist || ''}
-                                                        onChange={e => setEditingItem({
-                                                            ...editingItem,
-                                                            data: { ...editingItem.data, dentist: e.target.value }
-                                                        })}
-                                                    />
-                                                    <datalist id="dentist-options-edit">
-                                                        {dentistsDatabase.map((d, i) => <option key={i} value={d} />)}
-                                                    </datalist>
-                                                </div>
-                                            </>
-                                        )}
                                      </div>
                                      <div className="flex justify-end gap-2 pt-2">
                                          <button onClick={() => setEditingItem(null)} className="px-4 py-2 text-gray-500 dark:text-military-300 hover:bg-gray-100 dark:hover:bg-military-700 rounded-lg text-sm">Cancelar</button>
@@ -643,11 +664,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                             {role === 'guide_manager' && activePatientData.guides.length === 0 && (
                                 <EmptyState message="Nenhuma guia registrada para este paciente." />
                             )}
-                            {role === 'dentist_manager' && activePatientData.dentalAppointments.length === 0 && (
-                                <EmptyState message="Nenhum agendamento odontológico registrado." />
-                            )}
 
-                            {role === 'exam_manager' && activePatientData.exams.map(exam => (
+                            {role === 'exam_manager' && activePatientData.exams.map((exam: any) => (
                                 <ItemManager 
                                     key={exam.id} 
                                     name={exam.name} 
@@ -660,7 +678,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                 />
                             ))}
                             
-                            {role === 'guide_manager' && activePatientData.guides.map(guide => (
+                            {role === 'guide_manager' && activePatientData.guides.map((guide: any) => (
                                 <ItemManager 
                                     key={guide.id} 
                                     name={`Guia: ${guide.specialty}`} 
@@ -673,65 +691,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                     onDelete={() => handleDeleteItem(guide.id, 'guide')}
                                     onEdit={() => handleStartEdit(guide, 'guide')}
                                 />
-                            ))}
-
-                            {role === 'dentist_manager' && activePatientData.dentalAppointments.map(appt => (
-                                <div key={appt.id} className="bg-white dark:bg-military-900 border border-gray-200 dark:border-military-700 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-shadow hover:shadow-sm">
-                                    <div className="flex-grow">
-                                        <div className="flex items-center gap-2">
-                                            <h4 className="font-bold text-gray-800 dark:text-military-100">{appt.procedure}</h4>
-                                            {/* Minimal status badge */}
-                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase border 
-                                                ${appt.status === Status.READY ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900' : 
-                                                  appt.status === Status.PENDING ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-500 border-amber-200 dark:border-amber-900' :
-                                                  appt.status === Status.DELIVERED ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-900' :
-                                                  'bg-gray-100 dark:bg-military-800 text-gray-500 dark:text-military-400'}`}>
-                                                {appt.status === Status.READY ? 'Confirmado' : 
-                                                 appt.status === Status.PENDING ? 'Pendente' : 
-                                                 appt.status === Status.DELIVERED ? 'Realizado' : appt.status}
-                                            </span>
-                                        </div>
-                                        {appt.dentist && (
-                                            <p className="text-xs text-gray-500 dark:text-military-300 flex items-center gap-1 mt-0.5">
-                                                <User className="w-3 h-3" /> {appt.dentist}
-                                            </p>
-                                        )}
-                                        <p className="text-sm text-gray-500 dark:text-military-400 mt-1 flex items-center gap-2">
-                                            <Calendar className="w-3 h-3" /> {appt.date} às {appt.time}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button 
-                                            onClick={() => handleStatusChange('dental', appt.id, Status.READY)}
-                                            className="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200 dark:hover:bg-emerald-800/50 rounded text-xs font-bold border border-emerald-200 dark:border-emerald-900"
-                                        >
-                                            Confirmar
-                                        </button>
-                                        <button 
-                                            onClick={() => handleStatusChange('dental', appt.id, Status.DELIVERED)}
-                                            className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/50 rounded text-xs font-bold border border-blue-200 dark:border-blue-900"
-                                        >
-                                            Realizado
-                                        </button>
-                                        
-                                        <div className="flex items-center gap-1 pl-2 border-l border-gray-200 dark:border-military-700 ml-2">
-                                            <button 
-                                                onClick={() => handleStartEdit(appt, 'dental')}
-                                                className="p-1.5 text-gray-400 dark:text-military-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 hover:text-amber-600 dark:hover:text-amber-500 rounded"
-                                                title="Editar"
-                                            >
-                                                <Edit className="w-4 h-4" />
-                                            </button>
-                                            <button 
-                                                onClick={() => handleDeleteItem(appt.id, 'dental')}
-                                                className="p-1.5 text-red-400 dark:text-red-900 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-600 dark:hover:text-red-500 rounded"
-                                                title="Cancelar/Excluir"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
                             ))}
                         </div>
                     </div>
@@ -823,6 +782,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                   <option value="COMANDO DA BRIGADA">COMANDO DA BRIGADA</option>
                                   <option value="PEL PE">PEL PE</option>
                               </select>
+                          </div>
+                          
+                          {/* New Password Field */}
+                          <div className="md:col-span-2 space-y-1.5 bg-gray-50 dark:bg-military-800 p-3 rounded-lg border border-gray-200 dark:border-military-600">
+                              <label className="text-sm font-semibold text-gray-500 dark:text-military-400 flex items-center gap-2">
+                                  <KeyRound className="w-4 h-4" /> Senha de Acesso (Opcional)
+                              </label>
+                              <input 
+                                  type="text" 
+                                  placeholder="Padrão: Apenas números do CPF"
+                                  className="w-full px-4 py-2.5 bg-white dark:bg-military-950 border border-gray-300 dark:border-military-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-800 dark:text-military-100"
+                                  value={newPatientPassword}
+                                  onChange={e => setNewPatientPassword(e.target.value)}
+                              />
+                              <p className="text-xs text-gray-400">Deixe em branco para usar o padrão.</p>
                           </div>
                       </div>
 
@@ -998,7 +972,11 @@ const ItemManager: React.FC<{
                         <Edit className="w-4 h-4" />
                     </button>
                     <button 
-                        onClick={onDelete}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onDelete();
+                        }}
                         className="p-2 text-gray-400 dark:text-military-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                         title="Excluir"
                     >
