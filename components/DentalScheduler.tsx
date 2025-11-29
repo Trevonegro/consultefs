@@ -72,18 +72,20 @@ const DentalScheduler: React.FC<DentalSchedulerProps> = ({ cpf }) => {
         }
     };
 
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
         if (!selectedDate || !selectedTime || !dentistName) {
             alert("Por favor, preencha todos os campos (Dentista, Data e Hora).");
             return;
         }
         setLoading(true);
-        setTimeout(() => {
-            scheduleDentalAppointment(cpf, { procedure, date: selectedDate, time: selectedTime, dentist: dentistName });
-            setLoading(false);
+        const result = await scheduleDentalAppointment(cpf, { procedure, date: selectedDate, time: selectedTime, dentist: dentistName });
+        setLoading(false);
+        if (result) {
             alert("Agendamento confirmado com sucesso!");
             navigate('/dentista/meus-agendamentos');
-        }, 1000);
+        } else {
+            alert("Erro ao agendar.");
+        }
     };
 
     const renderCalendarDays = () => {

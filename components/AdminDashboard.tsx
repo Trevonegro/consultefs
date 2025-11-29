@@ -12,6 +12,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
   const [selectedPatientCpf, setSelectedPatientCpf] = useState<string | null>(null);
   const [viewingAttachment, setViewingAttachment] = useState<string | null>(null);
   
+  // Data State
+  const [allPatientsList, setAllPatientsList] = useState<Patient[]>([]);
+  const [activePatientData, setActivePatientData] = useState<any>(null);
+
   // Global Announcement State
   const [globalMsg, setGlobalMsg] = useState('');
   const [isEditingGlobal, setIsEditingGlobal] = useState(false);
@@ -49,19 +53,34 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
   const examDatabase = getLabExamsDatabase();
   const guideProceduresDatabase = getGuideProceduresDatabase();
   const dentistsDatabase = getDentistsDatabase();
-  const allPatientsList = getAllPatients();
 
-  // Load initial global message
+  // Load Patients and Global Msg
   useEffect(() => {
-    setGlobalMsg(getGlobalAnnouncement());
-  }, []);
+    const fetchData = async () => {
+        const patients = await getAllPatients();
+        setAllPatientsList(patients);
+        setGlobalMsg(getGlobalAnnouncement());
+    };
+    fetchData();
+  }, [tick]);
+
+  // Load Selected Patient Data
+  useEffect(() => {
+      const fetchPatient = async () => {
+        if (selectedPatientCpf) {
+            const details = await getPatientDetails(selectedPatientCpf);
+            setActivePatientData(details);
+        } else {
+            setActivePatientData(null);
+        }
+      };
+      fetchPatient();
+  }, [selectedPatientCpf, tick]);
 
   const patients = allPatientsList.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     p.cpf.includes(searchTerm)
   );
-
-  const activePatientData = selectedPatientCpf ? getPatientDetails(selectedPatientCpf) : null;
 
   // Stats calculation
   const stats = {
@@ -70,28 +89,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       completedItems: 45 // Placeholder
   };
 
-  const handleStatusChange = (type: 'exam' | 'guide' | 'dental', id: string, status: Status) => {
+  const handleStatusChange = async (type: 'exam' | 'guide' | 'dental', id: string, status: Status) => {
     if (!selectedPatientCpf) return;
     
     if (type === 'exam') {
-      updateExamStatus(selectedPatientCpf, id, status);
+      await updateExamStatus(selectedPatientCpf, id, status);
     } else if (type === 'guide') {
-      updateGuideStatus(selectedPatientCpf, id, status);
+      await updateGuideStatus(selectedPatientCpf, id, status);
     } else if (type === 'dental') {
-      updateDentalStatus(selectedPatientCpf, id, status);
+      await updateDentalStatus(selectedPatientCpf, id, status);
     }
     setTick(t => t + 1); // Refresh UI
   };
 
-  const handleAddItem = (e: React.FormEvent) => {
+  const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPatientCpf) return;
 
     if (role === 'exam_manager') {
-      addExamToPatient(selectedPatientCpf, newItemName, newItemDoctor);
+      await addExamToPatient(selectedPatientCpf, newItemName, newItemDoctor);
     } else if (role === 'guide_manager') {
       // newItemDoctor acts as Date Registered for guides per requirements
-      addGuideToPatient(selectedPatientCpf, newItemName, newItemDoctor, newItemDeadline);
+      await addGuideToPatient(selectedPatientCpf, newItemName, newItemDoctor, newItemDeadline);
     }
 
     // Reset and close
@@ -102,10 +121,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
     setTick(t => t + 1);
   };
 
-  const handleDeleteItem = (id: string, type: 'exam' | 'guide' | 'dental') => {
+  const handleDeleteItem = async (id: string, type: 'exam' | 'guide' | 'dental') => {
       if(!selectedPatientCpf) return;
       if(window.confirm('Tem certeza que deseja excluir este item?')) {
-          deleteItem(selectedPatientCpf, id, type);
+          await deleteItem(selectedPatientCpf, id, type);
           setTick(t => t + 1);
       }
   };
@@ -118,9 +137,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       });
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
       if(!selectedPatientCpf || !editingItem) return;
-      editItem(selectedPatientCpf, editingItem.id, editingItem.type, editingItem.data);
+      await editItem(selectedPatientCpf, editingItem.id, editingItem.type, editingItem.data);
       setEditingItem(null);
       setTick(t => t + 1);
   };
@@ -131,11 +150,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
     alert("Aviso geral atualizado com sucesso!");
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!selectedPatientCpf) return;
 
-      sendPatientNotification(selectedPatientCpf, msgTitle, msgContent);
+      await sendPatientNotification(selectedPatientCpf, msgTitle, msgContent);
       setIsMessaging(false);
       setMsgTitle('');
       setMsgContent('');
@@ -143,7 +162,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       setTick(t => t + 1);
   };
 
-  const handleRegisterPatient = (e: React.FormEvent) => {
+  const handleRegisterPatient = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!newPatient.name || !newPatient.cpf || !newPatient.precCp) {
           alert("Preencha os campos obrigatórios.");
@@ -154,7 +173,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
           return;
       }
 
-      const result = registerPatient(newPatient as Patient);
+      const result = await registerPatient(newPatient as Patient);
       if (result.success) {
           alert("Paciente cadastrado com sucesso! A senha inicial são os números do CPF.");
           setIsRegisteringPatient(false);
@@ -637,17 +656,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                         </div>
                         
                         <div className="space-y-3">
-                            {role === 'exam_manager' && activePatientData.exams.length === 0 && (
+                            {role === 'exam_manager' && activePatientData?.exams.length === 0 && (
                                 <EmptyState message="Nenhum exame registrado para este paciente." />
                             )}
-                            {role === 'guide_manager' && activePatientData.guides.length === 0 && (
+                            {role === 'guide_manager' && activePatientData?.guides.length === 0 && (
                                 <EmptyState message="Nenhuma guia registrada para este paciente." />
                             )}
-                            {role === 'dentist_manager' && activePatientData.dentalAppointments.length === 0 && (
+                            {role === 'dentist_manager' && activePatientData?.dentalAppointments.length === 0 && (
                                 <EmptyState message="Nenhum agendamento odontológico registrado." />
                             )}
 
-                            {role === 'exam_manager' && activePatientData.exams.map(exam => (
+                            {role === 'exam_manager' && activePatientData?.exams.map((exam: any) => (
                                 <ItemManager 
                                     key={exam.id} 
                                     name={exam.name} 
@@ -660,7 +679,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                 />
                             ))}
                             
-                            {role === 'guide_manager' && activePatientData.guides.map(guide => (
+                            {role === 'guide_manager' && activePatientData?.guides.map((guide: any) => (
                                 <ItemManager 
                                     key={guide.id} 
                                     name={`Guia: ${guide.specialty}`} 
@@ -675,7 +694,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                 />
                             ))}
 
-                            {role === 'dentist_manager' && activePatientData.dentalAppointments.map(appt => (
+                            {role === 'dentist_manager' && activePatientData?.dentalAppointments.map((appt: any) => (
                                 <div key={appt.id} className="bg-white dark:bg-military-900 border border-gray-200 dark:border-military-700 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-shadow hover:shadow-sm">
                                     <div className="flex-grow">
                                         <div className="flex items-center gap-2">
@@ -693,7 +712,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                         </div>
                                         {appt.dentist && (
                                             <p className="text-xs text-gray-500 dark:text-military-300 flex items-center gap-1 mt-0.5">
-                                                <User className="w-3 h-3" /> {appt.dentist}
+                                                <User className="w-3.5 h-3.5" />
+                                                <span>{appt.dentist}</span>
                                             </p>
                                         )}
                                         <p className="text-sm text-gray-500 dark:text-military-400 mt-1 flex items-center gap-2">

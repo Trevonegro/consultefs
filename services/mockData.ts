@@ -1,6 +1,7 @@
 import { Patient, Exam, Guide, Status, Notification, User, PatientType, MilitaryOrganization, DentalAppointment } from '../types';
+import { supabase } from './supabaseClient';
 
-// --- DATABASE OF LABORATORY EXAMS ---
+// --- CONSTANTS ---
 export const LAB_EXAMS_DATABASE = [
   "TODOS OS SEUS EXAMES ESTÃO PRONTOS",
   "Hemograma Completo",
@@ -27,7 +28,6 @@ export const LAB_EXAMS_DATABASE = [
   "COVID-19 (RT-PCR)"
 ];
 
-// --- DENTISTS DATABASE ---
 export const DENTISTS_DATABASE = [
     "Cap Dentista Ana Souza",
     "Cap Dentista Carlos Ferreira",
@@ -36,7 +36,6 @@ export const DENTISTS_DATABASE = [
     "Ten Dentista Roberto Santos"
 ];
 
-// --- DATABASE OF PROCEDURES (FROM PDF) FOR GUIDES ---
 export const GUIDE_PROCEDURES_DATABASE = [
     "EXAMES LABORATORIAIS",
     "Abdome inferior feminina (bexiga, útero, ovários e anexos)",
@@ -196,144 +195,178 @@ export const GUIDE_PROCEDURES_DATABASE = [
     "ODONTO - CARPAL"
 ];
 
-// Initial Mock Data
-const examHistory: Exam[] = [
-  { id: '101', name: 'Hemograma Completo', dateRequested: '2023-10-15', status: Status.DELIVERED, doctor: 'Laboratório Central', category: 'Sangue', acknowledged: true },
-];
-
-// --- SYSTEM STATE ---
 let globalSystemMessage: string = "";
 
-let mockPatients: Record<string, { password: string; profile: Patient; exams: Exam[]; guides: Guide[]; dentalAppointments: DentalAppointment[]; notifications: Notification[] }> = {
-  '111.111.111-11': {
-    password: 'paciente123',
-    profile: { 
-        id: 'p1', 
-        name: 'Maria Oliveira', 
-        cpf: '111.111.111-11', 
-        email: 'maria@example.com',
-        type: 'TITULAR',
-        om: 'CIA CMDO',
-        precCp: '123456789'
-    },
-    exams: [
-      ...examHistory,
-      { id: 'e1', name: 'Ressonância Magnética Joelho', dateRequested: '2024-05-18', status: Status.READY, doctor: 'Imagem Lab', category: 'Imagem', acknowledged: false },
-    ],
-    guides: [
-      { id: 'g1', specialty: 'Consulta com especialistas', doctor: 'Dr. Silva', dateRequested: '2024-05-01', deadline: '2024-05-15', status: Status.READY, qrCodeData: 'GUIDE-001', acknowledged: false }
-    ],
-    dentalAppointments: [
-        { id: 'd1', dentist: 'Cap Dentista Ana Souza', procedure: 'Consulta de Rotina', date: '2024-06-15', time: '14:00', status: Status.PENDING }
-    ],
-    notifications: [
-        { id: 'n1', title: 'Bem-vindo', message: 'Seja bem-vindo ao novo portal CONSULTE FS.', date: '2024-05-01', read: false, type: 'info' }
-    ]
-  },
-  '222.222.222-22': {
-    password: 'paciente123',
-    profile: { id: 'p2', name: 'João Santos', cpf: '222.222.222-22', email: 'joao@example.com', type: 'TITULAR', om: 'PEL PE', precCp: '987654321' },
-    exams: [],
-    guides: [],
-    dentalAppointments: [],
-    notifications: []
-  }
-};
+// --- ASYNC FUNCTIONS ---
 
-// Functions to interact with data
-
-export const loginUser = (credential: string, password: string): { user: User; data?: any } | null => {
+export const loginUser = async (credential: string, password: string): Promise<{ user: User; data?: any } | null> => {
   const lowerCred = credential.toLowerCase().trim();
   const cleanPassword = password.trim();
 
-  // 1. Manager Access
-  // Exam Manager
-  if (lowerCred === 'gestor.exames' && cleanPassword === 'admin.exames') {
-    return { 
-      user: { id: 'admin-exam', name: 'Gestor de Exames', role: 'exam_manager' } 
-    };
-  }
+  try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('cpf', lowerCred)
+        .eq('password', cleanPassword)
+        .single();
 
-  // Guide Manager
-  if (lowerCred === 'gestor.guias' && cleanPassword === 'admin.guias') {
-    return { 
-      user: { id: 'admin-guide', name: 'Gestor de Guias', role: 'guide_manager' } 
-    };
+      if (error || !data) return null;
+
+      const user = { 
+          id: data.id, 
+          name: data.name, 
+          role: data.role, 
+          cpf: data.cpf 
+      };
+
+      if (data.role !== 'patient') {
+          return { user };
+      }
+
+      // If patient, fetch all related data
+      const patientDetails = await getPatientDetails(data.cpf);
+      return {
+          user,
+          data: patientDetails
+      };
+
+  } catch (err) {
+      console.error("Login error:", err);
+      return null;
+  }
+};
+
+export const getAllPatients = async (): Promise<Patient[]> => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('role', 'patient');
+  
+  if (error) {
+      console.error('Error fetching patients:', error);
+      return [];
   }
   
-  // Dentist Manager
-  if (lowerCred === 'gestor.dentista' && cleanPassword === 'admin.dentista') {
-    return { 
-      user: { id: 'admin-dentist', name: 'Gestor Odontológico', role: 'dentist_manager' } 
-    };
-  }
-
-  // 2. Patient Access Logic
-  const cleanInput = credential.replace(/\D/g, '');
-  const foundKey = Object.keys(mockPatients).find(key => {
-      const cleanKey = key.replace(/\D/g, '');
-      return cleanKey === cleanInput && cleanInput.length > 0;
-  });
-
-  if (foundKey) {
-     const patientData = mockPatients[foundKey];
-     if (patientData.password === cleanPassword) {
-         return {
-            user: { id: patientData.profile.id, name: patientData.profile.name, role: 'patient', cpf: foundKey },
-            data: {
-                profile: patientData.profile,
-                exams: patientData.exams,
-                guides: patientData.guides,
-                dentalAppointments: patientData.dentalAppointments,
-                notifications: patientData.notifications
-            }
-          };
-     }
-  }
-  return null;
+  // Map snake_case DB to camelCase Types
+  return data.map(p => ({
+      id: p.id,
+      name: p.name,
+      cpf: p.cpf,
+      email: p.email || '',
+      type: p.type,
+      om: p.om,
+      precCp: p.prec_cp,
+      holderName: p.holder_name,
+      birthDate: p.birth_date // Assumes column might exist if registered via form
+  }));
 };
 
-// Admin functions
-export const getAllPatients = () => {
-  return Object.values(mockPatients).map(p => p.profile);
-};
+export const getPatientDetails = async (cpf: string) => {
+    try {
+        const profileReq = supabase.from('profiles').select('*').eq('cpf', cpf).single();
+        const examsReq = supabase.from('exams').select('*').eq('patient_cpf', cpf).order('created_at', { ascending: false });
+        const guidesReq = supabase.from('guides').select('*').eq('patient_cpf', cpf).order('created_at', { ascending: false });
+        const dentalReq = supabase.from('dental_appointments').select('*').eq('patient_cpf', cpf).order('created_at', { ascending: false });
+        const notifReq = supabase.from('notifications').select('*').eq('patient_cpf', cpf).order('created_at', { ascending: false });
 
-export const getPatientDetails = (cpf: string) => {
-    const p = mockPatients[cpf];
-    return p ? {
-        profile: p.profile,
-        exams: p.exams,
-        guides: p.guides,
-        dentalAppointments: p.dentalAppointments || [],
-        notifications: p.notifications
-    } : null;
-};
+        const [profileRes, examsRes, guidesRes, dentalRes, notifRes] = await Promise.all([
+            profileReq, examsReq, guidesReq, dentalReq, notifReq
+        ]);
 
-export const registerPatient = (patientData: Patient, password?: string) => {
-    if (mockPatients[patientData.cpf]) {
-        return { success: false, message: "CPF já cadastrado." };
+        if (profileRes.error) throw profileRes.error;
+
+        // Map data structures
+        const profile: Patient = {
+            id: profileRes.data.id,
+            name: profileRes.data.name,
+            cpf: profileRes.data.cpf,
+            email: profileRes.data.email,
+            type: profileRes.data.type,
+            om: profileRes.data.om,
+            precCp: profileRes.data.prec_cp,
+            holderName: profileRes.data.holder_name,
+            birthDate: profileRes.data.birth_date
+        };
+
+        const exams: Exam[] = (examsRes.data || []).map(e => ({
+            id: e.id,
+            name: e.name,
+            dateRequested: e.date_requested,
+            status: e.status,
+            doctor: e.doctor,
+            category: e.category,
+            acknowledged: e.acknowledged
+        }));
+
+        const guides: Guide[] = (guidesRes.data || []).map(g => ({
+            id: g.id,
+            specialty: g.specialty,
+            doctor: g.doctor,
+            dateRequested: g.date_requested,
+            deadline: g.deadline,
+            status: g.status,
+            attachmentUrl: g.attachment_url,
+            acknowledged: g.acknowledged
+        }));
+
+        const dentalAppointments: DentalAppointment[] = (dentalRes.data || []).map(d => ({
+            id: d.id,
+            dentist: d.dentist,
+            procedure: d.procedure,
+            date: d.date,
+            time: d.time,
+            status: d.status
+        }));
+
+        const notifications: Notification[] = (notifRes.data || []).map(n => ({
+            id: n.id,
+            title: n.title,
+            message: n.message,
+            date: n.date,
+            read: n.read,
+            type: n.type
+        }));
+
+        return { profile, exams, guides, dentalAppointments, notifications };
+
+    } catch (error) {
+        console.error("Error getting patient details:", error);
+        return null;
     }
-    mockPatients[patientData.cpf] = {
-        password: password || patientData.cpf.replace(/\D/g, ''), 
-        profile: {
-            ...patientData,
-            id: `p-${Date.now()}`,
-            email: `${patientData.name.split(' ')[0].toLowerCase()}@sistema.com`
-        },
-        exams: [],
-        guides: [],
-        dentalAppointments: [],
-        notifications: []
-    };
-    return { success: true };
 };
 
-export const changePatientPassword = (cpf: string, newPassword: string) => {
-    if (mockPatients[cpf]) {
-        mockPatients[cpf].password = newPassword;
-        return true;
+export const registerPatient = async (patientData: Patient, password?: string) => {
+    try {
+        const { error } = await supabase.from('profiles').insert({
+            cpf: patientData.cpf,
+            password: password || patientData.cpf.replace(/\D/g, ''),
+            name: patientData.name,
+            role: 'patient',
+            type: patientData.type,
+            om: patientData.om,
+            prec_cp: patientData.precCp,
+            holder_name: patientData.holderName,
+            email: patientData.email
+            // birth_date is handled if you add it to the schema, passing it here if schema allows
+        });
+
+        if (error) {
+            if (error.code === '23505') return { success: false, message: "CPF já cadastrado." };
+            return { success: false, message: error.message };
+        }
+        return { success: true };
+    } catch (e) {
+        return { success: false, message: "Erro de conexão." };
     }
-    return false;
+};
+
+export const changePatientPassword = async (cpf: string, newPassword: string) => {
+    const { error } = await supabase
+        .from('profiles')
+        .update({ password: newPassword })
+        .eq('cpf', cpf);
+    return !error;
 };
 
 export const getGlobalAnnouncement = () => globalSystemMessage;
@@ -342,189 +375,169 @@ export const setGlobalAnnouncement = (message: string) => {
     globalSystemMessage = message;
 };
 
-export const sendPatientNotification = (cpf: string, title: string, message: string) => {
-    const patient = mockPatients[cpf];
-    if (patient) {
-        const newNotification: Notification = {
-            id: `notif-${Date.now()}`,
-            title: title,
-            message: message,
-            date: new Date().toISOString().split('T')[0],
-            read: false,
-            type: 'info'
-        };
-        patient.notifications.unshift(newNotification);
-        return true;
-    }
-    return false;
+export const sendPatientNotification = async (cpf: string, title: string, message: string) => {
+    const { error } = await supabase.from('notifications').insert({
+        patient_cpf: cpf,
+        title,
+        message,
+        date: new Date().toISOString().split('T')[0],
+        read: false,
+        type: 'info'
+    });
+    return !error;
 };
 
 export const getLabExamsDatabase = () => LAB_EXAMS_DATABASE;
 export const getGuideProceduresDatabase = () => GUIDE_PROCEDURES_DATABASE;
 export const getDentistsDatabase = () => DENTISTS_DATABASE;
 
-export const updateExamStatus = (cpf: string, examId: string, newStatus: Status) => {
-  const patient = mockPatients[cpf];
-  if (patient) {
-    patient.exams = patient.exams.map(e => e.id === examId ? { ...e, status: newStatus } : e);
-  }
+export const updateExamStatus = async (cpf: string, examId: string, newStatus: Status) => {
+    await supabase.from('exams').update({ status: newStatus }).eq('id', examId);
 };
 
-export const updateGuideStatus = (cpf: string, guideId: string, newStatus: Status) => {
-  const patient = mockPatients[cpf];
-  if (patient) {
-    patient.guides = patient.guides.map(g => g.id === guideId ? { ...g, status: newStatus } : g);
-  }
+export const updateGuideStatus = async (cpf: string, guideId: string, newStatus: Status) => {
+    await supabase.from('guides').update({ status: newStatus }).eq('id', guideId);
 };
 
-export const updateDentalStatus = (cpf: string, appointId: string, newStatus: Status) => {
-    const patient = mockPatients[cpf];
-    if (patient) {
-      patient.dentalAppointments = patient.dentalAppointments.map(a => a.id === appointId ? { ...a, status: newStatus } : a);
-    }
+export const updateDentalStatus = async (cpf: string, appointId: string, newStatus: Status) => {
+    await supabase.from('dental_appointments').update({ status: newStatus }).eq('id', appointId);
 };
 
-export const addExamToPatient = (cpf: string, examName: string, doctor: string) => {
-  const patient = mockPatients[cpf];
-  if (patient) {
-    const newExam: Exam = {
-      id: `new-e-${Date.now()}`,
-      name: examName,
-      doctor: doctor,
-      dateRequested: new Date().toISOString().split('T')[0],
-      status: Status.PENDING,
-      category: 'Laboratorial',
-      acknowledged: false
+export const addExamToPatient = async (cpf: string, examName: string, doctor: string) => {
+    const { data, error } = await supabase.from('exams').insert({
+        patient_cpf: cpf,
+        name: examName,
+        doctor: doctor,
+        date_requested: new Date().toISOString().split('T')[0],
+        status: Status.PENDING,
+        category: 'Laboratorial',
+        acknowledged: false
+    }).select().single();
+    
+    if (error) return null;
+    return {
+        id: data.id,
+        name: data.name,
+        doctor: data.doctor,
+        dateRequested: data.date_requested,
+        status: data.status,
+        category: data.category,
+        acknowledged: data.acknowledged
     };
-    patient.exams.unshift(newExam);
-    return newExam;
-  }
-  return null;
 };
 
-export const addGuideToPatient = (cpf: string, specialty: string, dateRegistered: string, deadline: string) => {
-  const patient = mockPatients[cpf];
-  if (patient) {
-    const newGuide: Guide = {
-      id: `new-g-${Date.now()}`,
-      specialty: specialty,
-      doctor: 'Solicitação Interna',
-      dateRequested: dateRegistered,
-      deadline: deadline,
-      status: Status.PENDING,
-      acknowledged: false
+export const addGuideToPatient = async (cpf: string, specialty: string, dateRegistered: string, deadline: string) => {
+    const { data, error } = await supabase.from('guides').insert({
+        patient_cpf: cpf,
+        specialty: specialty,
+        doctor: 'Solicitação Interna',
+        date_requested: dateRegistered,
+        deadline: deadline,
+        status: Status.PENDING,
+        acknowledged: false
+    }).select().single();
+
+    if (error) return null;
+    return {
+        id: data.id,
+        specialty: data.specialty,
+        doctor: data.doctor,
+        dateRequested: data.date_requested,
+        deadline: data.deadline,
+        status: data.status,
+        acknowledged: data.acknowledged
     };
-    patient.guides.unshift(newGuide);
-    return newGuide;
-  }
-  return null;
 };
 
-export const deleteItem = (cpf: string, itemId: string, type: 'exam' | 'guide' | 'dental') => {
-    const patient = mockPatients[cpf];
-    if (patient) {
-        if (type === 'exam') {
-            patient.exams = patient.exams.filter(e => e.id !== itemId);
-        } else if (type === 'guide') {
-            patient.guides = patient.guides.filter(g => g.id !== itemId);
-        } else if (type === 'dental') {
-            patient.dentalAppointments = patient.dentalAppointments.filter(d => d.id !== itemId);
-        }
-        return true;
-    }
-    return false;
+export const deleteItem = async (cpf: string, itemId: string, type: 'exam' | 'guide' | 'dental') => {
+    const table = type === 'exam' ? 'exams' : type === 'guide' ? 'guides' : 'dental_appointments';
+    const { error } = await supabase.from(table).delete().eq('id', itemId);
+    return !error;
 };
 
-export const editItem = (cpf: string, itemId: string, type: 'exam' | 'guide' | 'dental', data: any) => {
-    const patient = mockPatients[cpf];
-    if (patient) {
-        if (type === 'exam') {
-             patient.exams = patient.exams.map(e => e.id === itemId ? { ...e, ...data } : e);
-        } else if (type === 'guide') {
-             patient.guides = patient.guides.map(g => g.id === itemId ? { ...g, ...data } : g);
-        } else if (type === 'dental') {
-             patient.dentalAppointments = patient.dentalAppointments.map(d => d.id === itemId ? { ...d, ...data } : d);
-        }
-        return true;
+export const editItem = async (cpf: string, itemId: string, type: 'exam' | 'guide' | 'dental', data: any) => {
+    const table = type === 'exam' ? 'exams' : type === 'guide' ? 'guides' : 'dental_appointments';
+    // Need to map frontend camelCase to backend snake_case if necessary, or assume 1:1 for specific fields
+    // For simplicity, we are handling basic fields.
+    const payload: any = {};
+    if (type === 'exam') {
+        payload.name = data.name;
+        payload.doctor = data.doctor;
+    } else if (type === 'guide') {
+        payload.specialty = data.specialty;
+        payload.deadline = data.deadline; // Assuming this is editable
+        payload.date_requested = data.dateRequested;
+    } else if (type === 'dental') {
+        payload.procedure = data.procedure;
+        payload.dentist = data.dentist;
+        payload.date = data.date;
+        payload.time = data.time;
     }
-    return false;
+
+    const { error } = await supabase.from(table).update(payload).eq('id', itemId);
+    return !error;
 }
 
-export const requestGuide = (cpf: string, data: { specialty: string, doctor: string, attachmentUrl?: string }) => {
-    const patient = mockPatients[cpf];
-    if (patient) {
-        const newGuide: Guide = {
-            id: `req-g-${Date.now()}`,
-            specialty: data.specialty,
-            doctor: data.doctor,
-            dateRequested: new Date().toISOString().split('T')[0],
-            deadline: 'A calcular',
-            status: Status.PENDING,
-            acknowledged: false,
-            attachmentUrl: data.attachmentUrl
-        };
-        patient.guides.unshift(newGuide);
-        return newGuide;
-    }
-    return null;
+export const requestGuide = async (cpf: string, data: { specialty: string, doctor: string, attachmentUrl?: string }) => {
+    const { data: res, error } = await supabase.from('guides').insert({
+        patient_cpf: cpf,
+        specialty: data.specialty,
+        doctor: data.doctor,
+        attachment_url: data.attachmentUrl,
+        date_requested: new Date().toISOString().split('T')[0],
+        deadline: 'A calcular',
+        status: Status.PENDING,
+        acknowledged: false
+    }).select().single();
+    
+    if (error) return null;
+    return res;
 };
 
 // Dental Functions
 export const checkDateAvailability = (dateStr: string) => {
-    // Mock logic: Weekends (0 and 6) are unavailable.
-    // Randomly unavailable for demo purposes on days divisible by 5
+    // Keep local logic for now as it's purely algorithmic in the mock
     const date = new Date(dateStr + 'T00:00:00');
     const day = date.getDay();
     const dayNum = date.getDate();
 
-    if (day === 0 || day === 6) return 'unavailable'; // Weekend
-    if (dayNum % 7 === 0) return 'full'; // Mock full day
+    if (day === 0 || day === 6) return 'unavailable'; 
+    if (dayNum % 7 === 0) return 'full'; 
     
     return 'available';
 };
 
 export const getAvailableTimeSlots = (dateStr: string) => {
-    // Mock slots
     return [
         "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
         "13:30", "14:00", "14:30", "15:00", "15:30", "16:00"
     ];
 };
 
-export const scheduleDentalAppointment = (cpf: string, data: { procedure: string, date: string, time: string, dentist: string }) => {
-    const patient = mockPatients[cpf];
-    if (patient) {
-        const newAppt: DentalAppointment = {
-            id: `dental-${Date.now()}`,
-            dentist: data.dentist,
-            procedure: data.procedure,
-            date: data.date,
-            time: data.time,
-            status: Status.PENDING
-        };
-        // Initialize if undefined (for older mock data)
-        if (!patient.dentalAppointments) patient.dentalAppointments = [];
-        patient.dentalAppointments.unshift(newAppt);
-        return newAppt;
-    }
-    return null;
+export const scheduleDentalAppointment = async (cpf: string, data: { procedure: string, date: string, time: string, dentist: string }) => {
+    const { data: res, error } = await supabase.from('dental_appointments').insert({
+        patient_cpf: cpf,
+        dentist: data.dentist,
+        procedure: data.procedure,
+        date: data.date,
+        time: data.time,
+        status: Status.PENDING
+    }).select().single();
+
+    if (error) return null;
+    return {
+        id: res.id,
+        dentist: res.dentist,
+        procedure: res.procedure,
+        date: res.date,
+        time: res.time,
+        status: res.status
+    };
 };
 
-export const acknowledgeItem = (cpf: string, itemId: string, type: 'exam' | 'guide') => {
-    const patient = mockPatients[cpf];
-    if (patient) {
-        if (type === 'exam') {
-            patient.exams = patient.exams.map(e => e.id === itemId ? { ...e, acknowledged: true } : e);
-        } else {
-            patient.guides = patient.guides.map(g => g.id === itemId ? { ...g, acknowledged: true } : g);
-        }
-        return {
-            profile: patient.profile,
-            exams: patient.exams,
-            guides: patient.guides,
-            dentalAppointments: patient.dentalAppointments || [],
-            notifications: patient.notifications
-        };
-    }
-    return null;
+export const acknowledgeItem = async (cpf: string, itemId: string, type: 'exam' | 'guide') => {
+    const table = type === 'exam' ? 'exams' : 'guides';
+    await supabase.from(table).update({ acknowledged: true }).eq('id', itemId);
+    // Return fresh data
+    return await getPatientDetails(cpf);
 };
