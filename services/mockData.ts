@@ -38,6 +38,7 @@ export const DENTISTS_DATABASE = [
 
 // --- DATABASE OF PROCEDURES (FROM PDF) FOR GUIDES ---
 export const GUIDE_PROCEDURES_DATABASE = [
+    "EXAMES LABORATORIAIS",
     "Abdome inferior feminina (bexiga, útero, ovários e anexos)",
     "Abdome inferior masculino (bexiga, próstata e vesícula)",
     "Abdome superior (fígado, vias biliares, vesícula, pâncreas, baço)",
