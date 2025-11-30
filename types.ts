@@ -1,4 +1,5 @@
 
+
 export enum Status {
   PENDING = 'PENDING',       // Aguardando Coleta/Confecção/Confirmação
   PROCESSING = 'PROCESSING', // Em Processamento/Confecção
@@ -56,7 +57,6 @@ export interface Guide {
   qrCodeData?: string;
   acknowledged?: boolean;
   attachmentUrl?: string; // URL/Base64 of the medical order photo
-  precCp?: string; // Novo campo solicitado
 }
 
 export interface Notification {
@@ -70,12 +70,11 @@ export interface Notification {
 
 export interface DentalAppointment {
   id: string;
-  patient_cpf: string;
   procedure: string;
-  dentist: string;
   date: string;
   time: string;
-  status: Status;
+  dentist: string;
+  status: 'SCHEDULED' | 'COMPLETED' | 'CANCELED';
 }
 
 // Stats for dashboard

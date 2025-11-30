@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { Patient, Exam, Guide, Status } from '../types';
 import { Activity, FileText, Clock, FilePlus, AlertTriangle } from 'lucide-react';

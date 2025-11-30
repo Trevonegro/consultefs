@@ -1,8 +1,9 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { getAllPatients, getPatientDetails, updateExamStatus, updateGuideStatus, addExamToPatient, addGuideToPatient, getLabExamsDatabase, getGuideProceduresDatabase, getGlobalAnnouncement, setGlobalAnnouncement, sendPatientNotification, registerPatient, deleteItem, editItem } from '../services/mockData';
 import { Status, Role, PatientType, MilitaryOrganization, Patient } from '../types';
-import { Search, User, Activity, FileText, Check, Truck, Clock, RefreshCw, Plus, X, ChevronRight, Users, ClipboardList, Paperclip, Megaphone, Send, MessageSquare, Trash2, Edit, Save, UserPlus, Loader2, KeyRound } from 'lucide-react';
+import { Search, User, Activity, FileText, Check, Truck, Clock, RefreshCw, Plus, X, ChevronRight, Users, ClipboardList, Paperclip, Megaphone, Send, MessageSquare, Trash2, Edit, Save, UserPlus } from 'lucide-react';
 
 interface AdminDashboardProps {
   role: Role;
@@ -13,12 +14,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
   const [selectedPatientCpf, setSelectedPatientCpf] = useState<string | null>(null);
   const [viewingAttachment, setViewingAttachment] = useState<string | null>(null);
   
-  // Data State (Async handling)
-  const [allPatientsList, setAllPatientsList] = useState<Patient[]>([]);
-  const [activePatientData, setActivePatientData] = useState<any>(null);
-  const [isLoadingPatients, setIsLoadingPatients] = useState(true);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
-
   // Global Announcement State
   const [globalMsg, setGlobalMsg] = useState('');
   const [isEditingGlobal, setIsEditingGlobal] = useState(false);
@@ -48,7 +43,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       holderName: '',
       om: 'CIA CMDO'
   });
-  const [newPatientPassword, setNewPatientPassword] = useState('');
 
   // Force re-render after update
   const [tick, setTick] = useState(0); 
@@ -56,42 +50,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
   // Get database of exams/guides
   const examDatabase = getLabExamsDatabase();
   const guideProceduresDatabase = getGuideProceduresDatabase();
-
-  // Load patients on mount and update
-  useEffect(() => {
-    const fetchPatients = async () => {
-        setIsLoadingPatients(true);
-        const data = await getAllPatients();
-        setAllPatientsList(data);
-        setIsLoadingPatients(false);
-    };
-    fetchPatients();
-  }, [tick]);
-
-  // Load active patient details when selected
-  useEffect(() => {
-    const fetchDetails = async () => {
-        if (selectedPatientCpf) {
-            setIsLoadingDetails(true);
-            const data = await getPatientDetails(selectedPatientCpf);
-            setActivePatientData(data);
-            setIsLoadingDetails(false);
-        } else {
-            setActivePatientData(null);
-        }
-    };
-    fetchDetails();
-  }, [selectedPatientCpf, tick]);
+  const allPatientsList = getAllPatients();
 
   // Load initial global message
   useEffect(() => {
-    setGlobalMsg(getGlobalAnnouncement());
+    setGlobalAnnouncement(getGlobalAnnouncement());
   }, []);
 
   const patients = allPatientsList.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     p.cpf.includes(searchTerm)
   );
+
+  const activePatientData = selectedPatientCpf ? getPatientDetails(selectedPatientCpf) : null;
 
   // Stats calculation
   const stats = {
@@ -100,26 +71,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       completedItems: 45 // Placeholder
   };
 
-  const handleStatusChange = async (type: 'exam' | 'guide', id: string, status: Status) => {
+  const handleStatusChange = (type: 'exam' | 'guide', id: string, status: Status) => {
     if (!selectedPatientCpf) return;
     
     if (type === 'exam') {
-      await updateExamStatus(selectedPatientCpf, id, status);
+      updateExamStatus(selectedPatientCpf, id, status);
     } else if (type === 'guide') {
-      await updateGuideStatus(selectedPatientCpf, id, status);
+      updateGuideStatus(selectedPatientCpf, id, status);
     }
     setTick(t => t + 1); // Refresh UI
   };
 
-  const handleAddItem = async (e: React.FormEvent) => {
+  const handleAddItem = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPatientCpf) return;
 
     if (role === 'exam_manager') {
-      await addExamToPatient(selectedPatientCpf, newItemName, newItemDoctor);
+      addExamToPatient(selectedPatientCpf, newItemName, newItemDoctor);
     } else if (role === 'guide_manager') {
       // newItemDoctor acts as Date Registered for guides per requirements
-      await addGuideToPatient(selectedPatientCpf, newItemName, newItemDoctor, newItemDeadline);
+      addGuideToPatient(selectedPatientCpf, newItemName, newItemDoctor, newItemDeadline);
     }
 
     // Reset and close
@@ -130,45 +101,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
     setTick(t => t + 1);
   };
 
-  const handleDeleteItem = async (id: string, type: 'exam' | 'guide') => {
-      // Check if we have necessary data
-      if(!selectedPatientCpf || !activePatientData) return;
-      
-      const confirmDelete = window.confirm('ATENÇÃO: Tem certeza que deseja excluir permanentemente este item?');
-      
-      if(confirmDelete) {
-          // 1. Snapshot previous state in case of error
-          const previousData = { ...activePatientData };
-
-          // 2. Optimistic Update: Manually remove the item from the current state to reflect INSTANTLY
-          setActivePatientData((current: any) => {
-              if(!current) return null;
-              
-              const updatedExams = type === 'exam' 
-                  ? current.exams.filter((item: any) => item.id !== id) 
-                  : current.exams;
-                  
-              const updatedGuides = type === 'guide' 
-                  ? current.guides.filter((item: any) => item.id !== id) 
-                  : current.guides;
-
-              return {
-                  ...current,
-                  exams: updatedExams,
-                  guides: updatedGuides
-              };
-          });
-
-          try {
-            // 3. Perform actual background deletion
-            await deleteItem(selectedPatientCpf, id, type);
-            // No need to refresh/tick if successful, as the UI is already correct.
-          } catch (error) {
-            console.error("Erro ao excluir:", error);
-            alert("Houve um erro ao tentar excluir o item. As alterações serão revertidas.");
-            // 4. Revert on error
-            setActivePatientData(previousData);
-          }
+  const handleDeleteItem = (id: string, type: 'exam' | 'guide') => {
+      if(!selectedPatientCpf) return;
+      if(window.confirm('Tem certeza que deseja excluir este item?')) {
+          deleteItem(selectedPatientCpf, id, type);
+          setTick(t => t + 1);
       }
   };
 
@@ -180,9 +117,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       });
   };
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = () => {
       if(!selectedPatientCpf || !editingItem) return;
-      await editItem(selectedPatientCpf, editingItem.id, editingItem.type, editingItem.data);
+      editItem(selectedPatientCpf, editingItem.id, editingItem.type, editingItem.data);
       setEditingItem(null);
       setTick(t => t + 1);
   };
@@ -193,11 +130,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
     alert("Aviso geral atualizado com sucesso!");
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleSendMessage = (e: React.FormEvent) => {
       e.preventDefault();
       if (!selectedPatientCpf) return;
 
-      await sendPatientNotification(selectedPatientCpf, msgTitle, msgContent);
+      sendPatientNotification(selectedPatientCpf, msgTitle, msgContent);
       setIsMessaging(false);
       setMsgTitle('');
       setMsgContent('');
@@ -205,7 +142,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       setTick(t => t + 1);
   };
 
-  const handleRegisterPatient = async (e: React.FormEvent) => {
+  const handleRegisterPatient = (e: React.FormEvent) => {
       e.preventDefault();
       if (!newPatient.name || !newPatient.cpf || !newPatient.precCp) {
           alert("Preencha os campos obrigatórios.");
@@ -216,14 +153,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
           return;
       }
 
-      // Pass the password if provided, otherwise registerPatient handles the default
-      const result = await registerPatient(newPatient as Patient, newPatientPassword || undefined);
-      
+      const result = registerPatient(newPatient as Patient);
       if (result.success) {
-          alert(`Paciente cadastrado com sucesso!\nSenha definida: ${newPatientPassword || 'Números do CPF'}`);
+          alert("Paciente cadastrado com sucesso! A senha inicial são os números do CPF.");
           setIsRegisteringPatient(false);
           setNewPatient({ name: '', cpf: '', birthDate: '', precCp: '', type: 'TITULAR', holderName: '', om: 'CIA CMDO' });
-          setNewPatientPassword('');
           setTick(t => t + 1);
       } else {
           alert("Erro: " + result.message);
@@ -308,7 +242,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                 <StatCard 
                     icon={Users} 
                     label="Total de Pacientes" 
-                    value={isLoadingPatients ? "..." : stats.totalPatients.toString()} 
+                    value={stats.totalPatients.toString()} 
                     color="bg-gray-800 dark:bg-military-600" 
                 />
                 <StatCard 
@@ -330,7 +264,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       <div className="flex-grow space-y-6">
         
         {/* Search & Selection View */}
-        {!selectedPatientCpf ? (
+        {!activePatientData ? (
             <div className="bg-white dark:bg-military-900 p-8 rounded-2xl shadow-sm border border-gray-200 dark:border-military-700 transition-colors">
                 <div className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="text-center md:text-left">
@@ -360,11 +294,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                 </div>
 
                 <div className="mt-8">
-                    {isLoadingPatients ? (
-                        <div className="flex justify-center py-12">
-                            <Loader2 className="w-8 h-8 animate-spin text-gray-400 dark:text-military-400" />
-                        </div>
-                    ) : patients.length > 0 ? (
+                    {patients.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {patients.map(p => (
                                 <button 
@@ -395,17 +325,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                         </div>
                     )}
                 </div>
-            </div>
-        ) : !activePatientData || isLoadingDetails ? (
-            <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
-                <Loader2 className="w-10 h-10 animate-spin text-gray-400 dark:text-military-400 mb-4" />
-                <p className="text-gray-500 dark:text-military-300">Carregando dados do paciente...</p>
-                <button 
-                    onClick={() => setSelectedPatientCpf(null)}
-                    className="mt-4 text-sm text-gray-400 hover:text-gray-600 dark:text-military-500 dark:hover:text-military-300 underline"
-                >
-                    Cancelar
-                </button>
             </div>
         ) : (
             // Active Patient Management View
@@ -448,6 +367,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                 <MessageSquare className="w-4 h-4" />
                                 Mensagem
                             </button>
+                            
                             <button 
                                 onClick={() => setIsAdding(true)}
                                 className="bg-gray-900 dark:bg-military-100 hover:bg-gray-800 dark:hover:bg-white text-white dark:text-military-950 px-5 py-2.5 rounded-lg text-sm font-medium shadow-sm transition-all flex items-center gap-2"
@@ -531,7 +451,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                                         required
                                                         list="exam-options"
                                                         type="text" 
-                                                        placeholder="Digite o nome ou selecione..."
                                                         className="w-full px-3 py-2 bg-gray-50 dark:bg-military-800 border border-gray-300 dark:border-military-600 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 dark:focus:ring-military-500 outline-none text-gray-800 dark:text-military-100"
                                                         value={newItemName}
                                                         onChange={e => setNewItemName(e.target.value)}
@@ -551,7 +470,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                                         required
                                                         list="guide-options"
                                                         type="text" 
-                                                        placeholder="Digite a especialidade ou selecione..."
                                                         className="w-full px-3 py-2 bg-gray-50 dark:bg-military-800 border border-gray-300 dark:border-military-600 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 dark:focus:ring-military-500 outline-none text-gray-800 dark:text-military-100"
                                                         value={newItemName}
                                                         onChange={e => setNewItemName(e.target.value)}
@@ -806,21 +724,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                   <option value="PEL PE">PEL PE</option>
                               </select>
                           </div>
-                          
-                          {/* New Password Field */}
-                          <div className="md:col-span-2 space-y-1.5 bg-gray-50 dark:bg-military-800 p-3 rounded-lg border border-gray-200 dark:border-military-600">
-                              <label className="text-sm font-semibold text-gray-500 dark:text-military-400 flex items-center gap-2">
-                                  <KeyRound className="w-4 h-4" /> Senha de Acesso (Opcional)
-                              </label>
-                              <input 
-                                  type="text" 
-                                  placeholder="Padrão: Apenas números do CPF"
-                                  className="w-full px-4 py-2.5 bg-white dark:bg-military-950 border border-gray-300 dark:border-military-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-800 dark:text-military-100"
-                                  value={newPatientPassword}
-                                  onChange={e => setNewPatientPassword(e.target.value)}
-                              />
-                              <p className="text-xs text-gray-400">Deixe em branco para usar o padrão.</p>
-                          </div>
                       </div>
 
                       {newPatient.type === 'DEPENDENTE' && (
@@ -995,11 +898,7 @@ const ItemManager: React.FC<{
                         <Edit className="w-4 h-4" />
                     </button>
                     <button 
-                        onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onDelete();
-                        }}
+                        onClick={onDelete}
                         className="p-2 text-gray-400 dark:text-military-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                         title="Excluir"
                     >

@@ -1,12 +1,11 @@
-
 import React, { useState } from 'react';
-import { ArrowRight, Lock, User, KeyRound, Eye, EyeOff, UserPlus, Calendar, Hash, Shield, Users, ArrowLeft, CheckCircle, Sun, Moon, Info } from 'lucide-react';
+import { ArrowRight, Lock, User, KeyRound, Eye, EyeOff, UserPlus, Calendar, Hash, Shield, Users, ArrowLeft, CheckCircle, Sun, Moon } from 'lucide-react';
 import { registerPatient } from '../services/mockData';
 import { PatientType, MilitaryOrganization, Patient } from '../types';
 import Logo from './Logo';
 
 interface LoginProps {
-  onLogin: (credential: string, password: string) => Promise<void>; // Updated to Promise
+  onLogin: (credential: string, password: string) => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
 }
@@ -37,11 +36,14 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
   const [showRegPassword, setShowRegPassword] = useState(false);
 
   // --- LOGIN LOGIC ---
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await onLogin(credential, password);
-    setLoading(false);
+    // Simulate network delay
+    setTimeout(() => {
+      onLogin(credential, password);
+      setLoading(false);
+    }, 800);
   };
 
   const toggleAdmin = () => {
@@ -51,7 +53,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
   }
 
   // --- REGISTRATION LOGIC ---
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleRegister = (e: React.FormEvent) => {
       e.preventDefault();
       
       // Validation
@@ -74,15 +76,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
 
       setLoading(true);
       
-      // Async Registration
-      const result = await registerPatient(regData as Patient, regPassword);
-      setLoading(false);
-      
-      if (result.success) {
-          setRegSuccess(true);
-      } else {
-          alert(result.message);
-      }
+      setTimeout(() => {
+          // Pass the custom password to registerPatient
+          const result = registerPatient(regData as Patient, regPassword);
+          setLoading(false);
+          
+          if (result.success) {
+              setRegSuccess(true);
+          } else {
+              alert(result.message);
+          }
+      }, 1000);
   };
 
   const handlePrecCpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -413,43 +417,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
             </button>
           </form>
           
-          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-military-700">
+          <div className="mt-8 pt-4 border-t border-gray-200 dark:border-military-700">
              <button onClick={toggleAdmin} className="text-xs text-gray-400 dark:text-military-500 hover:text-gray-600 dark:hover:text-military-300 underline">
                  {isAdminMode ? 'Voltar para Acesso Paciente' : 'Sou Gestor / Administrativo'}
              </button>
-          </div>
-
-          {/* CREDENCIAIS DE DEMONSTRAÇÃO */}
-          <div className="mt-6 bg-gray-50 dark:bg-military-800/50 p-4 rounded-xl border border-gray-200 dark:border-military-700 text-left">
-              <div className="flex items-center gap-2 mb-2 text-gray-600 dark:text-military-300">
-                  <Info className="w-4 h-4" />
-                  <span className="text-xs font-bold uppercase">Credenciais de Teste</span>
-              </div>
-              <div className="text-xs space-y-2 text-gray-500 dark:text-military-400 font-mono">
-                  {isAdminMode ? (
-                      <>
-                        <div className="flex justify-between">
-                            <span>User: <strong className="text-gray-700 dark:text-military-200">admin.exames</strong></span>
-                            <span>Senha: <strong className="text-gray-700 dark:text-military-200">admin</strong></span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span>User: <strong className="text-gray-700 dark:text-military-200">admin.guias</strong></span>
-                            <span>Senha: <strong className="text-gray-700 dark:text-military-200">admin</strong></span>
-                        </div>
-                      </>
-                  ) : (
-                      <div className="flex justify-between items-center bg-white dark:bg-military-900 p-2 rounded border border-gray-200 dark:border-military-700">
-                         <div>
-                            <span className="block text-[10px] text-gray-400">CPF (Paciente)</span>
-                            <strong className="text-gray-700 dark:text-military-200">000.000.000-00</strong>
-                         </div>
-                         <div>
-                            <span className="block text-[10px] text-gray-400">Senha</span>
-                            <strong className="text-gray-700 dark:text-military-200">123</strong>
-                         </div>
-                      </div>
-                  )}
-              </div>
           </div>
         </div>
       </div>
