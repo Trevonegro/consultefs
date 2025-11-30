@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { LayoutDashboard, FileText, Activity, LogOut, User, Menu, X, FilePlus, Bell, MessageSquare, UserCog, Moon, Sun } from 'lucide-react';
@@ -43,24 +42,29 @@ const App: React.FC = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
-  // Fetch global announcement on mount/update
+  // Fetch global announcement on mount
   useEffect(() => {
-    setGlobalAnnouncement(getGlobalAnnouncement());
-    const interval = setInterval(() => {
-        setGlobalAnnouncement(getGlobalAnnouncement());
-    }, 2000); // Poll for updates in this mock environment
-    return () => clearInterval(interval);
+    const fetchMsg = async () => {
+        const msg = await getGlobalAnnouncement();
+        setGlobalAnnouncement(msg);
+    };
+    fetchMsg();
   }, []);
 
-  const handleLogin = (credential: string, password: string) => {
-    const result = loginUser(credential, password);
-    if (result) {
-      setAppState({
-        user: result.user,
-        patientData: result.data
-      });
-    } else {
-      alert("Credenciais inválidas. Verifique usuário e senha.");
+  const handleLogin = async (credential: string, password: string) => {
+    try {
+        const result = await loginUser(credential, password);
+        
+        if (result.success && result.user) {
+          setAppState({
+            user: result.user,
+            patientData: result.data
+          });
+        } else {
+          alert(result.message || "Credenciais inválidas. Verifique usuário e senha.");
+        }
+    } catch (e) {
+        alert("Erro de conexão. Tente novamente.");
     }
   };
 
@@ -68,20 +72,21 @@ const App: React.FC = () => {
     setAppState(null);
   };
 
-  const handleAcknowledge = (id: string, type: 'exam' | 'guide') => {
+  const handleAcknowledge = async (id: string, type: 'exam' | 'guide') => {
     if (appState?.user.cpf) {
-        const updatedData = acknowledgeItem(appState.user.cpf, id, type);
+        const updatedData = await acknowledgeItem(appState.user.cpf, id, type);
         if (updatedData) {
             setAppState(prev => prev ? { ...prev, patientData: updatedData } : null);
         }
     }
   };
 
-  const handleRequestGuide = (data: { specialty: string; doctor: string; attachmentUrl: string }) => {
+  const handleRequestGuide = async (data: { specialty: string; doctor: string; attachmentUrl: string }) => {
      if (appState?.user.cpf) {
-         requestGuide(appState.user.cpf, data);
-         // Simulate re-fetch logic would go here, currently strictly mock or handled via side effects
-         setAppState(prev => prev ? { ...prev } : null);
+         await requestGuide(appState.user.cpf, data);
+         // Refresh data manually for now by re-logging in essentially or simplified fetch
+         // For UX speed we might want to optimistically update, but here we will let the next refresh handle it or alert
+         alert("Solicitação enviada. Atualize a página para ver o status.");
      }
   };
 
@@ -97,7 +102,9 @@ const App: React.FC = () => {
                <div className="flex items-center gap-3">
                   <Logo size="sm" showText={false} />
                   <div className="flex flex-col">
-                      <span className="font-bold text-gray-800 dark:text-military-100 leading-tight">CONSULTE FS</span>
+                      <span className="font-bold text-gray-800 dark:text-military-100 leading-tight">
+                        CONSULTE <span className="text-red-600">FS</span>
+                      </span>
                       <span className="text-[10px] text-gray-500 dark:text-military-300 font-medium tracking-wider uppercase">
                         {appState.user.role === 'exam_manager' ? 'Gestão de Exames' : 'Gestão de Guias'}
                       </span>
@@ -174,7 +181,9 @@ const Header: React.FC<{ user: Patient, toggleSidebar: () => void, notifications
         <button onClick={toggleSidebar} className="md:hidden p-2 hover:bg-gray-100 dark:hover:bg-military-700 rounded-lg text-gray-500 dark:text-military-300 transition-colors">
           <Menu className="w-6 h-6" />
         </button>
-        <span className="md:hidden font-bold text-gray-800 dark:text-military-100 tracking-tight">CONSULTE FS</span>
+        <span className="md:hidden font-bold text-gray-800 dark:text-military-100 tracking-tight">
+            CONSULTE <span className="text-red-600">FS</span>
+        </span>
       </div>
 
       <div className="flex items-center gap-4">

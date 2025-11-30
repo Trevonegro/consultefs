@@ -1,5 +1,7 @@
+
 import React, { useState, useRef } from 'react';
 import { Upload, FileText, Check, AlertCircle, X, Image as ImageIcon } from 'lucide-react';
+import { supabase } from '../services/supabaseClient';
 
 interface RequestGuideProps {
   onSubmit: (data: { specialty: string; doctor: string; attachmentUrl: string }) => void;
@@ -19,7 +21,6 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
-      // Create a preview URL
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreviewUrl(reader.result as string);
@@ -49,7 +50,7 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!file || !specialty || !doctor) {
@@ -59,21 +60,35 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
 
     setIsSubmitting(true);
 
-    // Simulate upload delay
-    setTimeout(() => {
+    try {
+        // Upload file to Supabase Storage
+        const fileName = `${Date.now()}_${file.name.replace(/\s/g, '')}`;
+        const { data, error } = await supabase.storage
+            .from('guide-attachments')
+            .upload(fileName, file);
+        
+        if (error) throw error;
+
+        const { data: { publicUrl } } = supabase.storage.from('guide-attachments').getPublicUrl(fileName);
+
         onSubmit({
             specialty,
             doctor,
-            attachmentUrl: previewUrl || '' // In a real app, this would be the URL returned by the backend upload
+            attachmentUrl: publicUrl
         });
-        setIsSubmitting(false);
+        
         setSuccess(true);
         // Reset form
         setSpecialty('');
         setDoctor('');
         setFile(null);
         setPreviewUrl(null);
-    }, 1500);
+    } catch (error) {
+        console.error(error);
+        alert("Erro ao enviar imagem. Tente novamente.");
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   if (success) {

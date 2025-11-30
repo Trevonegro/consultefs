@@ -1,11 +1,12 @@
+
 import React, { useState } from 'react';
-import { ArrowRight, Lock, User, KeyRound, Eye, EyeOff, UserPlus, Calendar, Hash, Shield, Users, ArrowLeft, CheckCircle, Sun, Moon } from 'lucide-react';
+import { ArrowRight, Lock, User, KeyRound, Eye, EyeOff, UserPlus, Calendar, Hash, Shield, Users, ArrowLeft, CheckCircle, Sun, Moon, Mail } from 'lucide-react';
 import { registerPatient } from '../services/mockData';
 import { PatientType, MilitaryOrganization, Patient } from '../types';
 import Logo from './Logo';
 
 interface LoginProps {
-  onLogin: (credential: string, password: string) => void;
+  onLogin: (credential: string, password: string) => Promise<void>;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
 }
@@ -23,6 +24,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
   const [regSuccess, setRegSuccess] = useState(false);
   const [regData, setRegData] = useState<Partial<Patient>>({
     name: '',
+    email: '',
     cpf: '',
     birthDate: '',
     precCp: '',
@@ -36,14 +38,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
   const [showRegPassword, setShowRegPassword] = useState(false);
 
   // --- LOGIN LOGIC ---
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // Simulate network delay
-    setTimeout(() => {
-      onLogin(credential, password);
-      setLoading(false);
-    }, 800);
+    await onLogin(credential, password);
+    setLoading(false);
   };
 
   const toggleAdmin = () => {
@@ -53,11 +52,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
   }
 
   // --- REGISTRATION LOGIC ---
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
       e.preventDefault();
       
       // Validation
-      if (!regData.name || !regData.cpf || !regData.precCp || !regData.birthDate || !regPassword) {
+      if (!regData.name || !regData.email || !regData.cpf || !regData.precCp || !regData.birthDate || !regPassword) {
           alert("Preencha todos os campos obrigatórios.");
           return;
       }
@@ -76,17 +75,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
 
       setLoading(true);
       
-      setTimeout(() => {
-          // Pass the custom password to registerPatient
-          const result = registerPatient(regData as Patient, regPassword);
-          setLoading(false);
-          
-          if (result.success) {
-              setRegSuccess(true);
-          } else {
-              alert(result.message);
-          }
-      }, 1000);
+      // Call async service
+      const result = await registerPatient(regData as Patient, regPassword);
+      setLoading(false);
+      
+      if (result.success) {
+          setRegSuccess(true);
+      } else {
+          alert(result.message);
+      }
   };
 
   const handlePrecCpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,7 +102,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
                 <h2 className="text-2xl font-bold text-gray-800 dark:text-military-100 mb-2">Cadastro Realizado!</h2>
                 <p className="text-gray-500 dark:text-military-400 mb-6">
                     Seu cadastro foi criado com sucesso. <br/>
-                    Utilize seu CPF e a senha criada para acessar o portal.
+                    Utilize seu E-mail e a senha criada para acessar o portal.
                 </p>
                 <button 
                     onClick={() => { 
@@ -113,7 +110,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
                       setIsRegistering(false); 
                       setRegPassword(''); 
                       setRegConfirmPassword('');
-                      setRegData({ name: '', cpf: '', birthDate: '', precCp: '', type: 'TITULAR', holderName: '', om: 'CIA CMDO' });
+                      setRegData({ name: '', email: '', cpf: '', birthDate: '', precCp: '', type: 'TITULAR', holderName: '', om: 'CIA CMDO' });
                     }}
                     className="w-full bg-gray-900 dark:bg-military-950 hover:bg-gray-800 dark:hover:bg-military-700 text-white font-semibold py-3 rounded-lg transition-colors border border-transparent dark:border-military-700 hover:scale-105"
                 >
@@ -154,6 +151,22 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
                                         placeholder="Digite seu nome completo"
                                         value={regData.name}
                                         onChange={e => setRegData({...regData, name: e.target.value})}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Email */}
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-gray-500 dark:text-military-400 uppercase mb-1">E-mail</label>
+                                <div className="relative">
+                                    <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-400 dark:text-military-300" />
+                                    <input
+                                        required
+                                        type="email"
+                                        className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-military-950 border border-gray-200 dark:border-military-700 rounded-lg focus:ring-2 focus:ring-gray-900 dark:focus:ring-military-500 outline-none text-gray-900 dark:text-military-100 placeholder-gray-400 dark:placeholder-military-600"
+                                        placeholder="seu.email@exemplo.com"
+                                        value={regData.email}
+                                        onChange={e => setRegData({...regData, email: e.target.value})}
                                     />
                                 </div>
                             </div>
@@ -351,22 +364,25 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
           <div className="flex justify-center mb-6">
              <Logo size="xl" showText={false} />
           </div>
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-military-100 mb-2">CONSULTE FS</h1>
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-military-100 mb-2">
+            CONSULTE <span className="text-red-600">FS</span>
+          </h1>
           <p className="text-gray-500 dark:text-military-400 mb-8">{isAdminMode ? 'Área Restrita (Gestores)' : 'Portal do Paciente'}</p>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="text-left">
               <label htmlFor="credential" className="block text-sm font-medium text-gray-500 dark:text-military-400 mb-1 flex items-center gap-2">
                   <User className="w-4 h-4 text-gray-400 dark:text-military-300" />
-                  {isAdminMode ? 'Usuário Gestor' : 'CPF do Paciente'}
+                  {isAdminMode ? 'Usuário Gestor' : 'E-mail'}
               </label>
               <input
                 id="credential"
-                type="text"
+                type={isAdminMode ? "text" : "email"}
                 className={`w-full px-4 py-3 bg-gray-50 dark:bg-military-950 border border-gray-200 dark:border-military-700 rounded-lg focus:ring-2 focus:border-transparent transition-all outline-none text-gray-900 dark:text-military-100 placeholder-gray-400 dark:placeholder-military-600 ${isAdminMode ? 'focus:ring-amber-600' : 'focus:ring-gray-500 dark:focus:ring-military-500'}`}
                 value={credential}
                 onChange={(e) => setCredential(e.target.value)}
                 required
+                placeholder={isAdminMode ? "ex: gestor.guias" : "seu.email@exemplo.com"}
               />
             </div>
 

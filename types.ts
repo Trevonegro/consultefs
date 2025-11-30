@@ -26,6 +26,7 @@ export interface Patient {
   cpf: string;
   email: string; // Used as placeholder or optional
   avatarUrl?: string;
+  role?: Role;
   // New fields
   birthDate?: string;
   precCp?: string; // Numbers only

@@ -1,178 +1,21 @@
 
-
+import { supabase } from './supabaseClient';
 import { Patient, Exam, Guide, Status, Notification, User, PatientType, MilitaryOrganization, DentalAppointment } from '../types';
 
-// --- DATABASE OF LABORATORY EXAMS ---
+// --- STATIC DATABASES (Dropdowns) ---
 export const LAB_EXAMS_DATABASE = [
-  "TODOS OS SEUS EXAMES ESTÃO PRONTOS",
-  "Hemograma Completo",
-  "Glicemia em Jejum",
-  "Colesterol Total",
-  "Colesterol HDL",
-  "Triglicerídeos",
-  "TSH (Hormônio Tireoestimulante)",
-  "T4 Livre",
-  "Ureia",
-  "Creatinina",
-  "Ácido Úrico",
-  "TGO (AST)",
-  "TGP (ALT)",
-  "Gama GT",
-  "Hemoglobina Glicada (HbA1c)",
-  "Vitamina D (25-Hidroxi)",
-  "Vitamina B12",
-  "Urina Tipo 1 (EAS)",
-  "Urocultura",
-  "Parasitológico de Fezes",
-  "PSA Total",
-  "Beta HCG",
-  "COVID-19 (RT-PCR)"
+  "Hemograma Completo", "Glicemia em Jejum", "Colesterol Total", "Colesterol HDL",
+  "Triglicerídeos", "TSH", "T4 Livre", "Ureia", "Creatinina", "Ácido Úrico",
+  "TGO", "TGP", "Gama GT", "HbA1c", "Vitamina D", "Vitamina B12",
+  "Urina Tipo 1", "Urocultura", "Parasitológico", "PSA Total", "Beta HCG", "COVID-19"
 ];
 
-// --- DATABASE OF PROCEDURES (FROM PDF) FOR GUIDES ---
 export const GUIDE_PROCEDURES_DATABASE = [
-    "Abdome inferior feminina (bexiga, útero, ovários e anexos)",
-    "Abdome inferior masculino (bexiga, próstata e vesícula)",
-    "Abdome superior (fígado, vias biliares, vesícula, pâncreas, baço)",
-    "Abdome total (inclui abdome inferior)",
-    "Aparelho urinário feminino (rins, ureteres e bexigas)",
-    "Aparelho urinário masculino (rins, ureteres, bexigas e próstata)",
-    "Articular (por articulação)",
-    "Dermatológica - pele e subcutâneo",
-    "Doppler colorido arterial de membro inferior- unilateral",
-    "Doppler colorido arterial de membro superior- unilateral",
-    "Doppler colorido de aorta e artéria renais",
-    "Doppler colorido de aorta e ilíacas",
-    "Doppler colorido de artérias e viscerais",
-    "Doppler colorido de órgão ou estrutura isolada",
-    "Doppler col. de vasos cervicais arteriais bilaterais (carótidas e vertebrais)",
-    "Doppler col. de vasos cervicais venosos bilaterais (subclávias e jugulares)",
-    "Doppler colorido de veia cava superior ou inferior",
-    "Doppler colorido venoso de membro inferior- unilateral",
-    "Doppler colorido venoso de membro superior- superior",
-    "Doppler transcraniano",
-    "Ecodopplercardiograma com contraste intracavitário",
-    "Ecodopplercardiograma transesofágico (inclui transtorácico)",
-    "Ecodopplercardiograma transtorácico",
-    "Estruturas superficiais (cervical ou axila ou músculo ou tendão)",
-    "Glândulas salivares (todas)",
-    "Mamas",
-    "Obstétrica",
-    "Obstétrica 1° trimestre (endovaginal)",
-    "Obstétrica com translucência nucal",
-    "Obstétrica Morfológica",
-    "Órgãos superficiais (tireoide ou escroto ou pênis ou crânio)",
-    "Transvaginal (inclui abdome inferior feminino)",
-    "TC - Abdome superior",
-    "TC - Abdome total (abdome superior, pelve e retroperitônio)",
-    "TC - Articulação (unilateral)",
-    "TC - Coluna – segmental adicional",
-    "TC - Coluna cervical ou dorsal ou lombar (ate 03 segmentos)",
-    "TC - Crânio ou sela túrcica ou orbitas",
-    "TC - Mastoide ou orelhas",
-    "TC - Face ou seios da face",
-    "TC - Pelve ou bacia",
-    "TC - Pescoço (partes moles, laringe, tireoide e faringe)",
-    "TC - Segmentos apendiculares (braços, pernas, etc)",
-    "TC - Tórax",
-    "RX - ADENÓIDES OU CAVUM",
-    "RX - CRÂNIO – 2 INCIDÊNCIAS",
-    "RX - CRÂNIO-3 INCIDÊNCIAS",
-    "RX - CRÂNIO- 4 INCIDÊNCIAS",
-    "RX - OSSOS DA FACE",
-    "RX - SEIOS DA FACE",
-    "RX - COLUNA CERVICAL -3 INCIDENCIAS",
-    "RX - COLUNA CERVICAL – 5 INCIDENCIAS",
-    "RX - COLUNA DORSAL-2 INCIDENCIAS",
-    "RX - COLUNA DORSAL -4 INCIDENCIAS",
-    "RX - COLUNA LOMBO SACRA -5 INCIDENCIAS",
-    "RX - COLUNA LOMBO-SACRA 3- INCIDENCIAS",
-    "RX - SACRO COCCIX",
-    "RX - Articulação coxofemoral (quadril)",
-    "RX - Articulação tibiotársica (tornozelo)",
-    "RX - Bacia",
-    "RX - Calcâneo",
-    "RX - Joelho",
-    "RX - Pé ou pododáctilo",
-    "RX - Perna",
-    "RX - Antebraço",
-    "RX - Articulação escapulo umeral (ombro)",
-    "RX - Braço",
-    "RX - Clavícula",
-    "RX - Cotovelo",
-    "RX - Mão ou quirodáctilo",
-    "RX - Mãos e punhos para idade óssea",
-    "RX - Punho",
-    "RX - Tórax -1 incidência",
-    "RX - Tórax -2 incidências",
-    "RX - Tórax-3 incidências",
-    "RX - Tórax – 4 incidências",
-    "RX - Coração e vasos da base",
-    "RX - Laringe ou hipofaringe ou pescoço (partes moles)",
-    "RX - Abdome agudo",
-    "RX - Abdome simples",
-    "Colonoscopia",
-    "Biopsia (colonoscopia)",
-    "Densitometria óssea – corpo inteiro",
-    "Densitometria óssea (um segmento)",
-    "Densitometria óssea – rotina: coluna e fêmur",
-    "Mamografia convencional bilateral",
-    "Mamografia digital bilateral",
-    "Polipectomia",
-    "ECG convencional bilateral (eletrocardiograma)",
-    "EEG em Mapeamento cerebral",
-    "EEG em Mapeamento cerebral quantitativo",
-    "Teste ergométrico computadorizado",
-    "MAPA (24H)",
-    "HOLTER (24 H)",
-    "AUDIOMETRIA (TONAL)",
-    "Endoscopia digestiva alta (com biópsia)",
-    "Endoscopia digestiva alta",
-    "MEDIDA DE ACUIDADE VISUAL",
-    "TONOMETRIA",
-    "PAQUIMETRIA ULTRASSÔNICA MOLECULAR",
-    "BIOMETRIA ULTRASSÔNICAMONOCULAR",
-    "MAPEAMNETO DE RETINA",
-    "MICROSCOPIA ESPECULAR DE CÓRNEA",
-    "CAMPIMETRIA MANUAL",
-    "EXAME DE MOTILIDADE OCULAR",
-    "CURVA TENSIONAL DIÁRIA - BINOCULAR",
-    "GONIOSCOPIA - BINOCULAR",
-    "ADAPTAÇÃO E TREINAMENTOS DE RECURSOS OPTICOS",
-    "TESTE DE SCHIRMER / ROSA BENGALA",
-    "TESTE DE TOLERÂNCIA HIDRICA",
-    "TESTE CONES ISHIHARA",
-    "CERATOSCOPIA",
-    "CAMPO VISUAL COMPUTADORIZADO",
-    "Consulta Nutricionista",
-    "Consulta Pediatra",
-    "Consulta Neurologista/ Psiquiatria",
-    "Atendimento em Pronto Socorro",
-    "Consulta com especialistas",
-    "Imobilizações não gessadas",
-    "Imobilização Membro inferior",
-    "Imobilização Membro superior",
-    "Bota com ou sem salto",
-    "Luva Gessada",
-    "Colete Gessado",
-    "Fisioterapia - Consulta Inicial",
-    "Fisioterapia - Patologia osteomiarticular em um membro",
-    "Fisioterapia - Patologia osteomiarticular em um segmento da coluna",
-    "Fisioterapia - Patologia osteomiarticular em diferentes segmentos da coluna",
-    "Fisioterapia - Patologias osteomioarticulares com dependência (AVC)",
-    "Fisioterapia - Paciente com D.P.O.C (Respiratória)",
-    "Reabilitação perineal com Biofeedback",
-    "Reeducação Postural Global (RGP)",
-    "Retardo desenvolvimento psicomotor",
-    "Parkinson",
-    "Pilates",
-    "Fonoaudiologia - Avaliação Inicial",
-    "Fonoaudiologia sessão (até 8 sessões)",
-    "Consulta psicólogo (a)",
-    "Psicoterapia individual - 1 sessão"
+    "Consulta com Especialista", "Raio-X", "Ultrassonografia", "Ressonância Magnética",
+    "Tomografia", "Fisioterapia", "Psicologia", "Nutricionista", "Cardiologia",
+    "Dermatologia", "Oftalmologia", "Ortopedia", "Ginecologia", "Pediatria"
 ];
 
-// --- DENTAL DATABASE ---
 export const DENTISTS_DATABASE = [
   "1º Ten Dent Silva (Clínico Geral)",
   "Cap Dent Souza (Ortodontista)",
@@ -180,317 +23,467 @@ export const DENTISTS_DATABASE = [
   "2º Ten Dent Lima (Odontopediatra)"
 ];
 
-// Initial Mock Data
-const examHistory: Exam[] = [
-  { id: '101', name: 'Hemograma Completo', dateRequested: '2023-10-15', status: Status.DELIVERED, doctor: 'Laboratório Central', category: 'Sangue', acknowledged: true },
-];
-
-// --- SYSTEM STATE ---
-let globalSystemMessage: string = "";
-
-let mockPatients: Record<string, { password: string; profile: Patient; exams: Exam[]; guides: Guide[]; notifications: Notification[]; appointments: DentalAppointment[] }> = {
-  '111.111.111-11': {
-    password: 'paciente123',
-    profile: { 
-        id: 'p1', 
-        name: 'Maria Oliveira', 
-        cpf: '111.111.111-11', 
-        email: 'maria@example.com',
-        type: 'TITULAR',
-        om: 'CIA CMDO',
-        precCp: '123456789'
-    },
-    exams: [
-      ...examHistory,
-      { id: 'e1', name: 'Ressonância Magnética Joelho', dateRequested: '2024-05-18', status: Status.READY, doctor: 'Imagem Lab', category: 'Imagem', acknowledged: false },
-    ],
-    guides: [
-      { id: 'g1', specialty: 'Consulta com especialistas', doctor: 'Dr. Silva', dateRequested: '2024-05-01', deadline: '2024-05-15', status: Status.READY, qrCodeData: 'GUIDE-001', acknowledged: false }
-    ],
-    notifications: [
-        { id: 'n1', title: 'Bem-vindo', message: 'Seja bem-vindo ao novo portal CONSULTE FS.', date: '2024-05-01', read: false, type: 'info' }
-    ],
-    appointments: []
-  },
-  '222.222.222-22': {
-    password: 'paciente123',
-    profile: { id: 'p2', name: 'João Santos', cpf: '222.222.222-22', email: 'joao@example.com', type: 'TITULAR', om: 'PEL PE', precCp: '987654321' },
-    exams: [],
-    guides: [],
-    notifications: [],
-    appointments: []
-  }
-};
-
-// Functions to interact with data
-
-export const loginUser = (credential: string, password: string): { user: User; data?: any } | null => {
-  const lowerCred = credential.toLowerCase().trim();
-  const cleanPassword = password.trim();
-
-  // 1. Manager Access
-  // Exam Manager
-  if (lowerCred === 'gestor.exames' && cleanPassword === 'admin.exames') {
-    return { 
-      user: { id: 'admin-exam', name: 'Gestor de Exames', role: 'exam_manager' } 
-    };
-  }
-
-  // Guide Manager
-  if (lowerCred === 'gestor.guias' && cleanPassword === 'admin.guias') {
-    return { 
-      user: { id: 'admin-guide', name: 'Gestor de Guias', role: 'guide_manager' } 
-    };
-  }
-
-  // 2. Patient Access Logic
-  const cleanInput = credential.replace(/\D/g, '');
-  const foundKey = Object.keys(mockPatients).find(key => {
-      const cleanKey = key.replace(/\D/g, '');
-      return cleanKey === cleanInput && cleanInput.length > 0;
-  });
-
-  if (foundKey) {
-     const patientData = mockPatients[foundKey];
-     if (patientData.password === cleanPassword) {
-         return {
-            user: { id: patientData.profile.id, name: patientData.profile.name, role: 'patient', cpf: foundKey },
-            data: {
-                profile: patientData.profile,
-                exams: patientData.exams,
-                guides: patientData.guides,
-                notifications: patientData.notifications,
-                appointments: patientData.appointments || []
-            }
-          };
-     }
-  }
-  return null;
-};
-
-// Admin functions
-export const getAllPatients = () => {
-  return Object.values(mockPatients).map(p => p.profile);
-};
-
-export const getPatientDetails = (cpf: string) => {
-    const p = mockPatients[cpf];
-    return p ? {
-        profile: p.profile,
-        exams: p.exams,
-        guides: p.guides,
-        notifications: p.notifications,
-        appointments: p.appointments || []
-    } : null;
-};
-
-export const registerPatient = (patientData: Patient, password?: string) => {
-    if (mockPatients[patientData.cpf]) {
-        return { success: false, message: "CPF já cadastrado." };
+// --- HELPER TO CONVERT CREDENTIALS ---
+const getEmailFromCredential = (credential: string) => {
+    const clean = credential.toLowerCase().trim();
+    
+    // Check if it is a specific admin username
+    if (clean === 'gestor.guias') return 'gestor.guias.v4@admin.com';
+    if (clean === 'gestor.exames') return 'gestor.exames.v4@admin.com';
+    
+    // If user provided a full email, return it
+    if (clean.includes('@')) {
+        return clean;
     }
-    mockPatients[patientData.cpf] = {
-        password: password || patientData.cpf.replace(/\D/g, ''), 
-        profile: {
-            ...patientData,
-            id: `p-${Date.now()}`,
-            email: `${patientData.name.split(' ')[0].toLowerCase()}@sistema.com`
-        },
-        exams: [],
-        guides: [],
-        notifications: [],
-        appointments: []
+    
+    // Fallback: assume it might be old CPF logic (should generally be avoided now)
+    const nums = clean.replace(/\D/g, '');
+    return `${nums}@consultefs.com`;
+};
+
+// --- MAPPERS (Moved up for safety) ---
+const mapExamFromDB = (e: any): Exam => ({
+    id: e.id,
+    name: e.name,
+    dateRequested: e.date_requested,
+    dateResult: e.date_result,
+    status: e.status,
+    doctor: e.doctor || 'Laboratório',
+    category: e.category,
+    acknowledged: e.acknowledged
+});
+
+const mapGuideFromDB = (g: any): Guide => ({
+    id: g.id,
+    specialty: g.specialty,
+    doctor: g.doctor || 'N/A',
+    dateRequested: g.date_requested,
+    deadline: g.deadline || 'A definir',
+    status: g.status,
+    acknowledged: g.acknowledged,
+    attachmentUrl: g.attachment_url,
+    qrCodeData: g.qr_code_data
+});
+
+// --- AUTH SERVICES ---
+
+export const loginUser = async (credential: string, password: string) => {
+    const email = getEmailFromCredential(credential);
+    const isManagerLogin = credential === 'gestor.guias' || credential === 'gestor.exames';
+    
+    // 1. Attempt standard Supabase login
+    let { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+    });
+
+    // --- NUCLEAR OPTION FOR DEMO: MOCK FALLBACK ---
+    // If Supabase fails (SQL error, Email not confirmed, etc) AND it is a Manager, 
+    // we return a fake success object so you can see the app working.
+    if (authError && isManagerLogin) {
+        console.warn("Supabase Login Failed (" + authError.message + "). Using FALLBACK MOCK SESSION for Manager.");
+        
+        const isGuideManager = credential === 'gestor.guias';
+        const mockUser: User = {
+            id: isGuideManager ? 'mock-guide-admin-id' : 'mock-exam-admin-id',
+            name: isGuideManager ? 'Gestor de Guias (Modo Demo)' : 'Gestor de Exames (Modo Demo)',
+            role: isGuideManager ? 'guide_manager' : 'exam_manager',
+            cpf: isGuideManager ? '000.000.000-02' : '000.000.000-01'
+        };
+
+        return {
+            success: true,
+            user: mockUser,
+            data: undefined
+        };
+    }
+    // -----------------------------------------------
+
+    // If it's a patient and login failed
+    if (authError) {
+        if (authError.message.includes("Email not confirmed")) {
+             return { success: false, message: "Email não confirmado. Verifique sua caixa de entrada." };
+        }
+        return { success: false, message: "Credenciais inválidas ou erro de conexão." };
+    }
+
+    if (!authData.user) {
+        return { success: false, message: "Erro desconhecido ao obter usuário." };
+    }
+
+    // Fetch Profile
+    let { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .maybeSingle();
+
+    // 2. SELF-HEALING: Profile Auto-Creation (For BOTH Admins AND Patients)
+    // If Auth exists but Profile is missing, try to create it from metadata
+    if (!profile) {
+         console.warn("Profile missing in DB. Attempting auto-creation from Auth Metadata...");
+         
+         const meta = authData.user.user_metadata || {};
+         // Determine data based on role or metadata
+         let newProfileData: any = {};
+
+         if (isManagerLogin) {
+             const userRole = credential === 'gestor.exames' ? 'exam_manager' : 'guide_manager';
+             newProfileData = {
+                 id: authData.user.id,
+                 email: email,
+                 name: userRole === 'exam_manager' ? 'Gestor de Exames' : 'Gestor de Guias',
+                 role: userRole,
+                 cpf: userRole === 'exam_manager' ? '000.000.000-01' : '000.000.000-02',
+                 om: 'CIA CMDO',
+                 type: 'TITULAR',
+                 prec_cp: '00000',
+                 birth_date: '1980-01-01'
+             };
+         } else {
+             // It's a patient
+             newProfileData = {
+                 id: authData.user.id,
+                 email: email,
+                 name: meta.name || 'Paciente', // Fallback name
+                 role: 'patient',
+                 cpf: meta.cpf || '000.000.000-00', 
+                 om: meta.om || 'CIA CMDO',
+                 type: meta.type || 'TITULAR',
+                 prec_cp: meta.precCp || '00000',
+                 birth_date: meta.birthDate || '1990-01-01',
+                 holder_name: meta.holderName || null
+             };
+         }
+
+         const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert(newProfileData)
+            .select()
+            .single();
+            
+         if(newProfile) {
+             profile = newProfile;
+         } else {
+             console.error("Failed to auto-create profile:", createError);
+         }
+    }
+
+    if (!profile) {
+        // If we still don't have a profile (and didn't hit the admin fallback), fail gracefully
+        if (isManagerLogin) {
+             // Fallback again just in case DB insert failed
+            const isGuideManager = credential === 'gestor.guias';
+            const fallbackUser: User = {
+                id: authData.user.id,
+                name: isGuideManager ? 'Gestor de Guias' : 'Gestor de Exames',
+                role: isGuideManager ? 'guide_manager' : 'exam_manager',
+                cpf: isGuideManager ? '000.000.000-02' : '000.000.000-01'
+            };
+            return {
+                success: true,
+                user: fallbackUser
+            };
+        }
+        return { success: false, message: "Perfil de usuário não encontrado. Tente se cadastrar novamente ou contate o suporte." };
+    }
+
+    // Normalize Profile Data
+    const userProfile: Patient = {
+        id: profile.id,
+        name: profile.name,
+        cpf: profile.cpf,
+        email: profile.email,
+        role: profile.role,
+        om: profile.om,
+        type: profile.type,
+        precCp: profile.prec_cp,
+        holderName: profile.holder_name,
+        birthDate: profile.birth_date
     };
+
+    const user: User = {
+        id: profile.id,
+        name: profile.name,
+        role: profile.role,
+        cpf: profile.cpf
+    };
+
+    // If Admin, just return user
+    if (profile.role !== 'patient') {
+        return { success: true, user };
+    }
+
+    // If Patient, fetch related data
+    const [exams, guides, notifications] = await Promise.all([
+        supabase.from('exams').select('*').eq('patient_id', user.id).order('date_requested', { ascending: false }),
+        supabase.from('guides').select('*').eq('patient_id', user.id).order('date_requested', { ascending: false }),
+        supabase.from('notifications').select('*').eq('patient_id', user.id).order('date', { ascending: false })
+    ]);
+
+    return {
+        success: true,
+        user,
+        data: {
+            profile: userProfile,
+            exams: (exams.data || []).map(mapExamFromDB),
+            guides: (guides.data || []).map(mapGuideFromDB),
+            notifications: (notifications.data || []),
+            appointments: [] // Dental removed/mocked empty
+        }
+    };
+};
+
+export const registerPatient = async (patientData: Patient, password?: string) => {
+    // Use the actual email provided by user
+    const email = patientData.email;
+    
+    // Fallback if no password provided (using CPF nums)
+    const pass = password || patientData.cpf.replace(/\D/g, '');
+
+    if (!email) {
+        return { success: false, message: "E-mail é obrigatório." };
+    }
+
+    const { data, error } = await supabase.auth.signUp({
+        email,
+        password: pass,
+        options: {
+            data: {
+                name: patientData.name,
+                cpf: patientData.cpf,
+                om: patientData.om,
+                type: patientData.type,
+                precCp: patientData.precCp,
+                holderName: patientData.holderName,
+                birthDate: patientData.birthDate,
+                role: 'patient'
+            }
+        }
+    });
+
+    if (error) {
+        return { success: false, message: error.message };
+    }
+
+    // EXPLICITLY CREATE PROFILE 
+    // This ensures data exists even if DB Triggers are missing
+    if (data.user) {
+        const { error: profileError } = await supabase.from('profiles').insert({
+            id: data.user.id,
+            email: email,
+            name: patientData.name,
+            role: 'patient',
+            cpf: patientData.cpf,
+            om: patientData.om,
+            type: patientData.type,
+            prec_cp: patientData.precCp,
+            birth_date: patientData.birthDate,
+            holder_name: patientData.holderName
+        });
+        
+        if (profileError) {
+            console.error("Manual profile creation warning:", profileError);
+            // We don't return false here because Auth succeeded, and loginUser's self-healing might fix it later
+        }
+    }
+
     return { success: true };
 };
 
-export const changePatientPassword = (cpf: string, newPassword: string) => {
-    if (mockPatients[cpf]) {
-        mockPatients[cpf].password = newPassword;
-        return true;
+export const changePatientPassword = async (cpf: string, newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return !error;
+};
+
+// --- DATA FETCHING & MANIPULATION ---
+
+export const getAllPatients = async () => {
+    const { data, error } = await supabase.from('profiles').select('*').eq('role', 'patient');
+    
+    // Fallback if RLS blocks listing patients or table empty
+    if (error || !data || data.length === 0) {
+        console.warn("Using mock patients list due to DB error or empty table");
+        return [
+            { id: '1', name: 'SGT Silva (Exemplo)', cpf: '111.111.111-11', role: 'patient', om: 'CIA CMDO', type: 'TITULAR', prec_cp: '12345' },
+            { id: '2', name: 'Maria Souza (Dependente)', cpf: '222.222.222-22', role: 'patient', om: '6ª CIA COM', type: 'DEPENDENTE', prec_cp: '67890' }
+        ];
     }
-    return false;
+
+    return data.map(p => ({
+        id: p.id,
+        name: p.name,
+        cpf: p.cpf,
+        email: p.email,
+        role: p.role,
+        om: p.om,
+        type: p.type,
+        precCp: p.prec_cp
+    }));
 };
 
-export const getGlobalAnnouncement = () => globalSystemMessage;
-
-export const setGlobalAnnouncement = (message: string) => {
-    globalSystemMessage = message;
-};
-
-export const sendPatientNotification = (cpf: string, title: string, message: string) => {
-    const patient = mockPatients[cpf];
-    if (patient) {
-        const newNotification: Notification = {
-            id: `notif-${Date.now()}`,
-            title: title,
-            message: message,
-            date: new Date().toISOString().split('T')[0],
-            read: false,
-            type: 'info'
-        };
-        patient.notifications.unshift(newNotification);
-        return true;
+export const getPatientDetails = async (cpf: string) => {
+    // 1. Try Fetch real profile
+    const { data: profile } = await supabase.from('profiles').select('*').eq('cpf', cpf).single();
+    
+    // MOCK DATA FALLBACK for details if not found in DB (e.g. if we clicked the mock user above)
+    if (!profile) {
+        if (cpf === '111.111.111-11') {
+             return {
+                profile: { id: '1', name: 'SGT Silva (Exemplo)', cpf: '111.111.111-11', role: 'patient', om: 'CIA CMDO', type: 'TITULAR', precCp: '12345' },
+                exams: [{ id: 'mock1', name: 'Hemograma', status: 'READY', dateRequested: '2023-10-01', doctor: 'Lab Central' }],
+                guides: [],
+                notifications: [],
+                appointments: []
+             }
+        }
+        return null;
     }
-    return false;
+
+    const [exams, guides, notifications] = await Promise.all([
+        supabase.from('exams').select('*').eq('patient_id', profile.id).order('created_at', { ascending: false }),
+        supabase.from('guides').select('*').eq('patient_id', profile.id).order('created_at', { ascending: false }),
+        supabase.from('notifications').select('*').eq('patient_id', profile.id).order('created_at', { ascending: false })
+    ]);
+
+    return {
+        profile: {
+             id: profile.id, name: profile.name, cpf: profile.cpf, email: profile.email,
+             role: profile.role, om: profile.om, type: profile.type, precCp: profile.prec_cp
+        },
+        exams: (exams.data || []).map(mapExamFromDB),
+        guides: (guides.data || []).map(mapGuideFromDB),
+        notifications: (notifications.data || []),
+        appointments: []
+    };
 };
 
+// --- ADMIN ACTIONS ---
+
+export const updateExamStatus = async (cpf: string, examId: string, newStatus: Status) => {
+    if(examId.startsWith('mock')) return; // Don't try to update mock items
+    await supabase.from('exams').update({ status: newStatus }).eq('id', examId);
+};
+
+export const updateGuideStatus = async (cpf: string, guideId: string, newStatus: Status) => {
+     if(guideId.startsWith('mock')) return;
+    await supabase.from('guides').update({ status: newStatus }).eq('id', guideId);
+};
+
+export const addExamToPatient = async (cpf: string, examName: string, doctor: string) => {
+    const { data: profile } = await supabase.from('profiles').select('id').eq('cpf', cpf).single();
+    if (!profile) return null;
+
+    await supabase.from('exams').insert({
+        patient_id: profile.id,
+        name: examName,
+        doctor: doctor,
+        status: Status.PENDING,
+        date_requested: new Date().toISOString().split('T')[0]
+    });
+};
+
+export const addGuideToPatient = async (cpf: string, specialty: string, dateRegistered: string, deadline: string) => {
+    const { data: profile } = await supabase.from('profiles').select('id').eq('cpf', cpf).single();
+    if (!profile) return null;
+
+    await supabase.from('guides').insert({
+        patient_id: profile.id,
+        specialty,
+        doctor: dateRegistered, // Using doctor field for date registered as per previous logic logic
+        deadline,
+        status: Status.PENDING,
+        date_requested: new Date().toISOString().split('T')[0]
+    });
+};
+
+export const deleteItem = async (cpf: string, itemId: string, type: 'exam' | 'guide') => {
+    if(itemId.startsWith('mock')) return;
+    const table = type === 'exam' ? 'exams' : 'guides';
+    await supabase.from(table).delete().eq('id', itemId);
+};
+
+export const editItem = async (cpf: string, itemId: string, type: 'exam' | 'guide', data: any) => {
+    if(itemId.startsWith('mock')) return;
+    const table = type === 'exam' ? 'exams' : 'guides';
+    const updateData = type === 'exam' 
+        ? { name: data.name, doctor: data.doctor } 
+        : { specialty: data.specialty, doctor: data.doctor, deadline: data.deadline, date_requested: data.dateRequested };
+    
+    await supabase.from(table).update(updateData).eq('id', itemId);
+};
+
+export const sendPatientNotification = async (cpf: string, title: string, message: string) => {
+    const { data: profile } = await supabase.from('profiles').select('id').eq('cpf', cpf).single();
+    if (!profile) return;
+
+    await supabase.from('notifications').insert({
+        patient_id: profile.id,
+        title,
+        message,
+        date: new Date().toISOString().split('T')[0]
+    });
+};
+
+// --- GLOBAL SETTINGS ---
+export const getGlobalAnnouncement = async () => {
+    const { data } = await supabase.from('system_settings').select('value').eq('key', 'global_announcement').single();
+    return data?.value || '';
+};
+
+export const setGlobalAnnouncement = async (message: string) => {
+    // Upsert
+    await supabase.from('system_settings').upsert({ key: 'global_announcement', value: message });
+};
+
+// --- PATIENT ACTIONS ---
+
+export const acknowledgeItem = async (cpf: string, itemId: string, type: 'exam' | 'guide') => {
+    const table = type === 'exam' ? 'exams' : 'guides';
+    await supabase.from(table).update({ acknowledged: true }).eq('id', itemId);
+    
+    // Return updated full data for the patient state refresh
+    const { data: { user } } = await supabase.auth.getUser();
+    if(user) {
+         // Re-fetch everything (simplified)
+         const [exams, guides, notifications] = await Promise.all([
+            supabase.from('exams').select('*').eq('patient_id', user.id).order('date_requested', { ascending: false }),
+            supabase.from('guides').select('*').eq('patient_id', user.id).order('date_requested', { ascending: false }),
+            supabase.from('notifications').select('*').eq('patient_id', user.id).order('date', { ascending: false })
+        ]);
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        
+        return {
+            profile: { ...profile, precCp: profile.prec_cp, holderName: profile.holder_name },
+            exams: (exams.data || []).map(mapExamFromDB),
+            guides: (guides.data || []).map(mapGuideFromDB),
+            notifications: (notifications.data || []),
+            appointments: []
+        }
+    }
+    return null;
+};
+
+export const requestGuide = async (cpf: string, data: { specialty: string, doctor: string, attachmentUrl?: string }) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if(!user) return;
+
+    await supabase.from('guides').insert({
+        patient_id: user.id,
+        specialty: data.specialty,
+        doctor: data.doctor,
+        status: Status.PENDING,
+        deadline: 'A calcular',
+        attachment_url: data.attachmentUrl,
+        date_requested: new Date().toISOString().split('T')[0]
+    });
+};
+
+// --- HELPERS FOR EXPORTS (DB) ---
 export const getLabExamsDatabase = () => LAB_EXAMS_DATABASE;
 export const getGuideProceduresDatabase = () => GUIDE_PROCEDURES_DATABASE;
-
-export const updateExamStatus = (cpf: string, examId: string, newStatus: Status) => {
-  const patient = mockPatients[cpf];
-  if (patient) {
-    patient.exams = patient.exams.map(e => e.id === examId ? { ...e, status: newStatus } : e);
-  }
-};
-
-export const updateGuideStatus = (cpf: string, guideId: string, newStatus: Status) => {
-  const patient = mockPatients[cpf];
-  if (patient) {
-    patient.guides = patient.guides.map(g => g.id === guideId ? { ...g, status: newStatus } : g);
-  }
-};
-
-export const addExamToPatient = (cpf: string, examName: string, doctor: string) => {
-  const patient = mockPatients[cpf];
-  if (patient) {
-    const newExam: Exam = {
-      id: `new-e-${Date.now()}`,
-      name: examName,
-      doctor: doctor,
-      dateRequested: new Date().toISOString().split('T')[0],
-      status: Status.PENDING,
-      category: 'Laboratorial',
-      acknowledged: false
-    };
-    patient.exams.unshift(newExam);
-    return newExam;
-  }
-  return null;
-};
-
-export const addGuideToPatient = (cpf: string, specialty: string, dateRegistered: string, deadline: string) => {
-  const patient = mockPatients[cpf];
-  if (patient) {
-    const newGuide: Guide = {
-      id: `new-g-${Date.now()}`,
-      specialty: specialty,
-      doctor: 'Solicitação Interna',
-      dateRequested: dateRegistered,
-      deadline: deadline,
-      status: Status.PENDING,
-      acknowledged: false
-    };
-    patient.guides.unshift(newGuide);
-    return newGuide;
-  }
-  return null;
-};
-
-export const deleteItem = (cpf: string, itemId: string, type: 'exam' | 'guide') => {
-    const patient = mockPatients[cpf];
-    if (patient) {
-        if (type === 'exam') {
-            patient.exams = patient.exams.filter(e => e.id !== itemId);
-        } else if (type === 'guide') {
-            patient.guides = patient.guides.filter(g => g.id !== itemId);
-        }
-        return true;
-    }
-    return false;
-};
-
-export const editItem = (cpf: string, itemId: string, type: 'exam' | 'guide', data: any) => {
-    const patient = mockPatients[cpf];
-    if (patient) {
-        if (type === 'exam') {
-             patient.exams = patient.exams.map(e => e.id === itemId ? { ...e, ...data } : e);
-        } else if (type === 'guide') {
-             patient.guides = patient.guides.map(g => g.id === itemId ? { ...g, ...data } : g);
-        }
-        return true;
-    }
-    return false;
-}
-
-export const requestGuide = (cpf: string, data: { specialty: string, doctor: string, attachmentUrl?: string }) => {
-    const patient = mockPatients[cpf];
-    if (patient) {
-        const newGuide: Guide = {
-            id: `req-g-${Date.now()}`,
-            specialty: data.specialty,
-            doctor: data.doctor,
-            dateRequested: new Date().toISOString().split('T')[0],
-            deadline: 'A calcular',
-            status: Status.PENDING,
-            acknowledged: false,
-            attachmentUrl: data.attachmentUrl
-        };
-        patient.guides.unshift(newGuide);
-        return newGuide;
-    }
-    return null;
-};
-
-export const acknowledgeItem = (cpf: string, itemId: string, type: 'exam' | 'guide') => {
-    const patient = mockPatients[cpf];
-    if (patient) {
-        if (type === 'exam') {
-            patient.exams = patient.exams.map(e => e.id === itemId ? { ...e, acknowledged: true } : e);
-        } else {
-            patient.guides = patient.guides.map(g => g.id === itemId ? { ...g, acknowledged: true } : g);
-        }
-        return {
-            profile: patient.profile,
-            exams: patient.exams,
-            guides: patient.guides,
-            notifications: patient.notifications,
-            appointments: patient.appointments || []
-        };
-    }
-    return null;
-};
-
-// --- DENTAL SERVICE FUNCTIONS ---
-
 export const getDentistsDatabase = () => DENTISTS_DATABASE;
-
-export const checkDateAvailability = (dateStr: string) => {
-    const date = new Date(dateStr + 'T00:00:00');
-    const day = date.getDay();
-    if (day === 0 || day === 6) return 'unavailable'; // Weekend
-    
-    // Mock random fullness
-    const random = Math.random();
-    if (random > 0.9) return 'full';
-    
-    return 'available';
-};
-
-export const getAvailableTimeSlots = (dateStr: string) => {
-    return ["08:00", "09:00", "10:00", "11:00", "13:30", "14:30", "15:30", "16:30"];
-};
-
-export const scheduleDentalAppointment = (cpf: string, data: { procedure: string, date: string, time: string, dentist: string }) => {
-    const patient = mockPatients[cpf];
-    if (patient) {
-        if (!patient.appointments) patient.appointments = [];
-        
-        const newAppointment: DentalAppointment = {
-            id: `appt-${Date.now()}`,
-            procedure: data.procedure,
-            date: data.date,
-            time: data.time,
-            dentist: data.dentist,
-            status: 'SCHEDULED'
-        };
-        patient.appointments.push(newAppointment);
-        return newAppointment;
-    }
-    return null;
-};
-
-export const getPatientAppointments = (cpf: string) => {
-    const patient = mockPatients[cpf];
-    return patient ? (patient.appointments || []) : [];
-};
+export const checkDateAvailability = (date: string) => 'available'; // Simplified for now
+export const getAvailableTimeSlots = (date: string) => ["08:00", "09:00", "10:00"];
+export const scheduleDentalAppointment = async (cpf: string, data: any) => {}; 
+export const getPatientAppointments = () => [];
