@@ -3,8 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { LayoutDashboard, FileText, Activity, LogOut, User, Menu, X, FilePlus, Bell, MessageSquare, UserCog, Moon, Sun } from 'lucide-react';
 import { loginUser, getGlobalAnnouncement, logoutUser } from './services/supabaseAuth';
-import { acknowledgeItem, requestGuide, mapExamFromDB, mapGuideFromDB } from './services/mockData';
-import { supabase } from './services/supabaseClient';
+import { acknowledgeItem, requestGuide } from './services/mockData';
 import { Patient, Exam, Guide, Notification, User as UserType } from './types';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -53,49 +52,6 @@ const App: React.FC = () => {
     fetchMsg();
   }, []);
 
-  // --- REALTIME UPDATES FOR PATIENT ---
-  useEffect(() => {
-    // Only subscribe if we have a logged-in patient
-    if (!appState?.user || (appState.user.role !== 'patient') || !appState.patientData) return;
-
-    const refreshPatientData = async () => {
-        const patientId = appState.user.id;
-        
-        const [examsRes, guidesRes, notifRes] = await Promise.all([
-            supabase.from('exams').select('*').eq('patient_id', patientId).order('created_at', { ascending: false }),
-            supabase.from('guides').select('*').eq('patient_id', patientId).order('created_at', { ascending: false }),
-            supabase.from('notifications').select('*').eq('patient_id', patientId).order('created_at', { ascending: false })
-        ]);
-
-        if (examsRes.data && guidesRes.data && notifRes.data) {
-            setAppState(prev => {
-                if (!prev || !prev.patientData) return prev;
-                return {
-                    ...prev,
-                    patientData: {
-                        ...prev.patientData,
-                        exams: examsRes.data.map(mapExamFromDB),
-                        guides: guidesRes.data.map(mapGuideFromDB),
-                        notifications: notifRes.data
-                    }
-                };
-            });
-        }
-    };
-
-    // Subscribe to changes
-    const channel = supabase.channel('global-patient-updates')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'exams', filter: `patient_id=eq.${appState.user.id}` }, () => refreshPatientData())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'guides', filter: `patient_id=eq.${appState.user.id}` }, () => refreshPatientData())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `patient_id=eq.${appState.user.id}` }, () => refreshPatientData())
-        .subscribe();
-
-    return () => {
-        supabase.removeChannel(channel);
-    };
-  }, [appState?.user?.id]); // Re-run if user ID changes
-
-
   const handleLogin = async (credential: string, password: string) => {
     try {
         const result = await loginUser(credential, password);
@@ -131,8 +87,9 @@ const App: React.FC = () => {
   const handleRequestGuide = async (data: { specialty: string; doctor: string; attachmentUrl: string }) => {
      if (appState?.user.cpf) {
          await requestGuide(appState.user.cpf, data);
-         // Alert user, real-time subscription will update the list automatically
-         alert("Solicitação enviada. Acompanhe o status em 'Minhas Guias'.");
+         // Refresh data manually for now by re-logging in essentially or simplified fetch
+         // For UX speed we might want to optimistically update, but here we will let the next refresh handle it or alert
+         alert("Solicitação enviada. Atualize a página para ver o status.");
      }
   };
 
