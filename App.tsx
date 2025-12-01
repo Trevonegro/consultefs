@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { LayoutDashboard, FileText, Activity, LogOut, User, Menu, X, FilePlus, Bell, MessageSquare, UserCog, Moon, Sun } from 'lucide-react';
-import { loginUser, acknowledgeItem, requestGuide, getGlobalAnnouncement } from './services/mockData';
+import { loginUser, getGlobalAnnouncement, logoutUser } from './services/supabaseAuth';
+import { acknowledgeItem, requestGuide } from './services/mockData';
 import { Patient, Exam, Guide, Notification, User as UserType } from './types';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
@@ -64,11 +65,13 @@ const App: React.FC = () => {
           alert(result.message || "Credenciais inválidas. Verifique usuário e senha.");
         }
     } catch (e) {
+        console.error('Erro no login:', e);
         alert("Erro de conexão. Tente novamente.");
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await logoutUser();
     setAppState(null);
   };
 

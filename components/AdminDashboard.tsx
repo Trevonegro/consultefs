@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../services/supabaseClient';
 import { getAllPatients, getPatientDetails, updateExamStatus, updateGuideStatus, addExamToPatient, addGuideToPatient, getLabExamsDatabase, getGuideProceduresDatabase, getGlobalAnnouncement, setGlobalAnnouncement, sendPatientNotification, registerPatient, deleteItem, editItem } from '../services/mockData';
 import { Status, Role, PatientType, MilitaryOrganization, Patient } from '../types';
 import { Search, User, Activity, FileText, Check, Truck, Clock, RefreshCw, Plus, X, ChevronRight, Users, ClipboardList, Paperclip, Megaphone, Send, MessageSquare, Trash2, Edit, Save, UserPlus } from 'lucide-react';
@@ -29,7 +30,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
   // Item Forms state (Add)
   const [isAdding, setIsAdding] = useState(false);
   const [newItemName, setNewItemName] = useState('');
-  const [newItemDoctor, setNewItemDoctor] = useState(''); // Used as Doctor Name for Exams, and Date for Guides
+  const [newItemDoctor, setNewItemDoctor] = useState(''); 
   const [newItemDeadline, setNewItemDeadline] = useState('');
 
   // Edit Item State
@@ -47,34 +48,71 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       om: 'CIA CMDO'
   });
 
-  // Force re-render after update
-  const [tick, setTick] = useState(0); 
-  
-  // Get database of exams/guides
-  const examDatabase = getLabExamsDatabase();
-  const guideProceduresDatabase = getGuideProceduresDatabase();
+  // Helper to force data refresh
+  const refreshData = async () => {
+      // Refresh Patients List
+      const patients = await getAllPatients();
+      setAllPatientsList(patients);
 
-  // Load initial global message and patients
+      // Refresh Active Patient Details if selected
+      if (selectedPatientCpf) {
+          const details = await getPatientDetails(selectedPatientCpf);
+          setActivePatientData(details);
+      }
+      
+      // Refresh Global Msg
+      const msg = await getGlobalAnnouncement();
+      setGlobalMsg(msg);
+  };
+
+  // Initial Load
   useEffect(() => {
-    const init = async () => {
-        setGlobalMsg(await getGlobalAnnouncement());
-        setAllPatientsList(await getAllPatients());
+    refreshData();
+  }, []);
+
+  // Effect to refresh details when selection changes
+  useEffect(() => {
+      if (selectedPatientCpf) {
+          getPatientDetails(selectedPatientCpf).then(setActivePatientData);
+      } else {
+          setActivePatientData(null);
+      }
+  }, [selectedPatientCpf]);
+
+  // --- REALTIME SUBSCRIPTION ---
+  useEffect(() => {
+    // Subscribe to changes in tables
+    const channels = supabase.channel('admin-dashboard-changes')
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'profiles' },
+            (payload) => {
+                console.log('Realtime change in profiles:', payload);
+                refreshData();
+            }
+        )
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'exams' },
+            (payload) => {
+                console.log('Realtime change in exams:', payload);
+                refreshData();
+            }
+        )
+        .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'guides' },
+            (payload) => {
+                console.log('Realtime change in guides:', payload);
+                refreshData();
+            }
+        )
+        .subscribe();
+
+    return () => {
+        supabase.removeChannel(channels);
     };
-    init();
-  }, [tick]);
-
-  // Load selected patient data
-  useEffect(() => {
-    if (selectedPatientCpf) {
-        const fetchDetails = async () => {
-            const details = await getPatientDetails(selectedPatientCpf);
-            setActivePatientData(details);
-        };
-        fetchDetails();
-    } else {
-        setActivePatientData(null);
-    }
-  }, [selectedPatientCpf, tick]);
+  }, [selectedPatientCpf]); // Re-bind if selection changes to ensure scope
 
   const patients = allPatientsList.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -84,8 +122,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
   // Stats calculation
   const stats = {
       totalPatients: allPatientsList.length,
-      activeItems: 12, // Placeholder
-      completedItems: 45 // Placeholder
+      activeItems: allPatientsList.length > 0 ? '---' : 0, 
+      completedItems: '---'
   };
 
   const handleStatusChange = async (type: 'exam' | 'guide', id: string, status: Status) => {
@@ -96,7 +134,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
     } else if (type === 'guide') {
       await updateGuideStatus(selectedPatientCpf, id, status);
     }
-    setTick(t => t + 1); // Refresh UI
+    // No manual refresh needed, Realtime will catch it
   };
 
   const handleAddItem = async (e: React.FormEvent) => {
@@ -106,23 +144,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
     if (role === 'exam_manager') {
       await addExamToPatient(selectedPatientCpf, newItemName, newItemDoctor);
     } else if (role === 'guide_manager') {
-      // newItemDoctor acts as Date Registered for guides per requirements
       await addGuideToPatient(selectedPatientCpf, newItemName, newItemDoctor, newItemDeadline);
     }
 
-    // Reset and close
     setIsAdding(false);
     setNewItemName('');
     setNewItemDoctor('');
     setNewItemDeadline('');
-    setTick(t => t + 1);
   };
 
   const handleDeleteItem = async (id: string, type: 'exam' | 'guide') => {
       if(!selectedPatientCpf) return;
       if(window.confirm('Tem certeza que deseja excluir este item?')) {
           await deleteItem(selectedPatientCpf, id, type);
-          setTick(t => t + 1);
       }
   };
 
@@ -138,7 +172,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       if(!selectedPatientCpf || !editingItem) return;
       await editItem(selectedPatientCpf, editingItem.id, editingItem.type, editingItem.data);
       setEditingItem(null);
-      setTick(t => t + 1);
   };
 
   const handleUpdateGlobal = async () => {
@@ -156,7 +189,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
       setMsgTitle('');
       setMsgContent('');
       alert("Mensagem enviada para o paciente.");
-      setTick(t => t + 1);
   };
 
   const handleRegisterPatient = async (e: React.FormEvent) => {
@@ -175,7 +207,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
           alert("Paciente cadastrado com sucesso! A senha inicial são os números do CPF.");
           setIsRegisteringPatient(false);
           setNewPatient({ name: '', cpf: '', birthDate: '', precCp: '', type: 'TITULAR', holderName: '', om: 'CIA CMDO' });
-          setTick(t => t + 1);
       } else {
           alert("Erro: " + result.message);
       }
@@ -264,14 +295,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                 />
                 <StatCard 
                     icon={RefreshCw} 
-                    label="Itens em Processamento" 
-                    value="12" 
-                    color="bg-amber-600 dark:bg-amber-700" 
-                />
-                <StatCard 
-                    icon={Check} 
-                    label="Prontos Hoje" 
-                    value="8" 
+                    label="Status do Sistema" 
+                    value="Online" 
                     color="bg-emerald-600 dark:bg-emerald-700" 
                 />
             </div>
@@ -473,7 +498,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                                         onChange={e => setNewItemName(e.target.value)}
                                                     />
                                                     <datalist id="exam-options">
-                                                        {examDatabase.map((exam, index) => (
+                                                        {getLabExamsDatabase().map((exam, index) => (
                                                             <option key={index} value={exam} />
                                                         ))}
                                                     </datalist>
@@ -492,7 +517,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                                         onChange={e => setNewItemName(e.target.value)}
                                                     />
                                                     <datalist id="guide-options">
-                                                        {guideProceduresDatabase.map((proc, index) => (
+                                                        {getGuideProceduresDatabase().map((proc, index) => (
                                                             <option key={index} value={proc} />
                                                         ))}
                                                     </datalist>
@@ -501,7 +526,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-xs font-semibold text-gray-500 dark:text-military-400 uppercase">
-                                                {role === 'exam_manager' ? 'Laboratório Realizado' : 'Dia do Cadastro'}
+                                                {role === 'exam_manager' ? 'Laboratório Realizado' : 'Data do Cadastro'}
                                             </label>
                                             {role === 'guide_manager' ? (
                                                 <input 
@@ -527,7 +552,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                                 <input 
                                                     required
                                                     type="text" 
-                                                    placeholder="AAAA-MM-DD"
+                                                    placeholder="Ex: 5 dias úteis, ou 20/10/2024"
                                                     className="w-full px-3 py-2 bg-gray-50 dark:bg-military-800 border border-gray-300 dark:border-military-600 rounded-lg text-sm focus:ring-2 focus:ring-gray-500 dark:focus:ring-military-500 outline-none text-gray-800 dark:text-military-100"
                                                     value={newItemDeadline}
                                                     onChange={e => setNewItemDeadline(e.target.value)}
@@ -680,6 +705,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                   className="w-full px-4 py-2.5 bg-white dark:bg-military-950 border border-gray-300 dark:border-military-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-800 dark:text-military-100"
                                   value={newPatient.name}
                                   onChange={e => setNewPatient({...newPatient, name: e.target.value})}
+                              />
+                          </div>
+                          <div className="space-y-1.5">
+                              <label className="text-sm font-semibold text-gray-500 dark:text-military-400">E-mail</label>
+                              <input 
+                                  required
+                                  type="email" 
+                                  className="w-full px-4 py-2.5 bg-white dark:bg-military-950 border border-gray-300 dark:border-military-700 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-gray-800 dark:text-military-100"
+                                  value={newPatient.email || ''}
+                                  onChange={e => setNewPatient({...newPatient, email: e.target.value})}
                               />
                           </div>
                           <div className="space-y-1.5">

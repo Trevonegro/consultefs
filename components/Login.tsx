@@ -30,7 +30,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
     precCp: '',
     type: 'TITULAR',
     holderName: '',
-    om: 'CIA CMDO'
+    om: 'CIA CMDO',
+    role: 'patient' // Ensure role is set
   });
   // Registration Password State
   const [regPassword, setRegPassword] = useState('');
@@ -55,9 +56,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
   const handleRegister = async (e: React.FormEvent) => {
       e.preventDefault();
       
+      console.log('Iniciando tentativa de registro:', regData);
+
       // Validation
       if (!regData.name || !regData.email || !regData.cpf || !regData.precCp || !regData.birthDate || !regPassword) {
-          alert("Preencha todos os campos obrigatórios.");
+          alert("Por favor, preencha todos os campos obrigatórios.");
           return;
       }
       if (regPassword.length < 6) {
@@ -75,20 +78,27 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
 
       setLoading(true);
       
-      // Call async service
-      const result = await registerPatient(regData as Patient, regPassword);
-      setLoading(false);
-      
-      if (result.success) {
-          setRegSuccess(true);
-      } else {
-          alert(result.message);
+      try {
+        // Call async service
+        const result = await registerPatient(regData as Patient, regPassword);
+        console.log('Resultado do registro:', result);
+        
+        if (result.success) {
+            setRegSuccess(true);
+        } else {
+            alert(result.message || "Erro desconhecido ao cadastrar.");
+        }
+      } catch (error) {
+        console.error("Erro crítico no frontend:", error);
+        alert("Ocorreu um erro ao processar sua solicitação. Tente novamente.");
+      } finally {
+        setLoading(false);
       }
   };
 
   const handlePrecCpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = e.target.value.replace(/\D/g, ''); // Only numbers
-      setRegData({ ...regData, precCp: val });
+      setRegData(prev => ({ ...prev, precCp: val }));
   };
 
   // --- RENDER REGISTRATION SUCCESS ---
@@ -110,7 +120,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
                       setIsRegistering(false); 
                       setRegPassword(''); 
                       setRegConfirmPassword('');
-                      setRegData({ name: '', email: '', cpf: '', birthDate: '', precCp: '', type: 'TITULAR', holderName: '', om: 'CIA CMDO' });
+                      setRegData({ name: '', email: '', cpf: '', birthDate: '', precCp: '', type: 'TITULAR', holderName: '', om: 'CIA CMDO', role: 'patient' });
                     }}
                     className="w-full bg-gray-900 dark:bg-military-950 hover:bg-gray-800 dark:hover:bg-military-700 text-white font-semibold py-3 rounded-lg transition-colors border border-transparent dark:border-military-700 hover:scale-105"
                 >
@@ -137,7 +147,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
                 </div>
                 
                 <div className="p-6 md:p-8 overflow-y-auto max-h-[80vh]">
-                    <form onSubmit={handleRegister} className="space-y-5">
+                    <form onSubmit={handleRegister} className="space-y-5" noValidate>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             {/* Nome */}
                             <div className="md:col-span-2">
@@ -328,7 +338,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="flex-[2] bg-gray-900 dark:bg-military-950 hover:bg-gray-800 dark:hover:bg-military-700 text-white font-semibold py-3 rounded-lg transition-colors shadow-lg flex items-center justify-center gap-2 hover:scale-105"
+                                className="flex-[2] bg-gray-900 dark:bg-military-950 hover:bg-gray-800 dark:hover:bg-military-700 text-white font-semibold py-3 rounded-lg transition-colors shadow-lg flex items-center justify-center gap-2 hover:scale-105 disabled:opacity-70 disabled:cursor-not-allowed"
                             >
                                 {loading ? 'Processando...' : (
                                     <>
@@ -373,16 +383,16 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
             <div className="text-left">
               <label htmlFor="credential" className="block text-sm font-medium text-gray-500 dark:text-military-400 mb-1 flex items-center gap-2">
                   <User className="w-4 h-4 text-gray-400 dark:text-military-300" />
-                  {isAdminMode ? 'Usuário Gestor' : 'E-mail'}
+                  E-mail
               </label>
               <input
                 id="credential"
-                type={isAdminMode ? "text" : "email"}
+                type="email"
                 className={`w-full px-4 py-3 bg-gray-50 dark:bg-military-950 border border-gray-200 dark:border-military-700 rounded-lg focus:ring-2 focus:border-transparent transition-all outline-none text-gray-900 dark:text-military-100 placeholder-gray-400 dark:placeholder-military-600 ${isAdminMode ? 'focus:ring-amber-600' : 'focus:ring-gray-500 dark:focus:ring-military-500'}`}
                 value={credential}
                 onChange={(e) => setCredential(e.target.value)}
                 required
-                placeholder={isAdminMode ? "ex: gestor.guias" : "seu.email@exemplo.com"}
+                placeholder="seu.email@exemplo.com"
               />
             </div>
 
@@ -434,7 +444,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, theme, toggleTheme }) => {
           </form>
           
           <div className="mt-8 pt-4 border-t border-gray-200 dark:border-military-700">
-             <button onClick={toggleAdmin} className="text-xs text-gray-400 dark:text-military-500 hover:text-gray-600 dark:hover:text-military-300 underline">
+             <button onClick={toggleAdmin} className="text-xs text-gray-400 dark:text-military-500 hover:text-gray-600 dark:hover:text-military-300 underline block w-full mb-3">
                  {isAdminMode ? 'Voltar para Acesso Paciente' : 'Sou Gestor / Administrativo'}
              </button>
           </div>

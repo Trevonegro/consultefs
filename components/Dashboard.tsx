@@ -1,6 +1,6 @@
 
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { supabase } from '../services/supabaseClient';
 import { Patient, Exam, Guide, Status } from '../types';
 import { Activity, FileText, Clock, FilePlus, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -12,7 +12,65 @@ interface DashboardProps {
   globalAnnouncement?: string;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ patient, exams, guides, globalAnnouncement }) => {
+const Dashboard: React.FC<DashboardProps> = ({ patient, exams: initialExams, guides: initialGuides, globalAnnouncement }) => {
+  const [exams, setExams] = useState(initialExams);
+  const [guides, setGuides] = useState(initialGuides);
+
+  useEffect(() => {
+    setExams(initialExams);
+    setGuides(initialGuides);
+  }, [initialExams, initialGuides]);
+
+  // Realtime for Patient
+  useEffect(() => {
+    const channel = supabase.channel('patient-dashboard')
+        .on(
+            'postgres_changes', 
+            { event: '*', schema: 'public', table: 'exams', filter: `patient_id=eq.${patient.id}` }, 
+            async (payload) => {
+                 // Simple refetch strategy for consistency
+                 const { data } = await supabase.from('exams').select('*').eq('patient_id', patient.id).order('created_at', { ascending: false });
+                 if(data) {
+                    setExams(data.map((e: any) => ({
+                        id: e.id,
+                        name: e.name,
+                        dateRequested: e.date_requested,
+                        dateResult: e.date_result,
+                        status: e.status,
+                        doctor: e.doctor || 'Laboratório',
+                        category: e.category,
+                        acknowledged: e.acknowledged
+                    })));
+                 }
+            }
+        )
+        .on(
+            'postgres_changes', 
+            { event: '*', schema: 'public', table: 'guides', filter: `patient_id=eq.${patient.id}` }, 
+            async (payload) => {
+                 const { data } = await supabase.from('guides').select('*').eq('patient_id', patient.id).order('created_at', { ascending: false });
+                 if(data) {
+                     setGuides(data.map((g: any) => ({
+                        id: g.id,
+                        specialty: g.specialty,
+                        doctor: g.doctor || 'N/A',
+                        dateRequested: g.date_requested,
+                        deadline: g.deadline || 'A definir',
+                        status: g.status,
+                        acknowledged: g.acknowledged,
+                        attachmentUrl: g.attachment_url,
+                        qrCodeData: g.qr_code_data
+                    })));
+                 }
+            }
+        )
+        .subscribe();
+
+    return () => {
+        supabase.removeChannel(channel);
+    }
+  }, [patient.id]);
+
   const readyExamsCount = exams.filter(e => e.status === Status.READY).length;
   const readyGuidesCount = guides.filter(g => g.status === Status.READY).length;
   

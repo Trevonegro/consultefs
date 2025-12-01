@@ -15,6 +15,7 @@ export interface User {
   name: string;
   role: Role;
   cpf?: string;
+  email?: string;
 }
 
 export type PatientType = 'TITULAR' | 'DEPENDENTE';
