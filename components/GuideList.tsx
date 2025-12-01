@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { Guide, Status } from '../types';
-import { FileText, MapPin, QrCode, Clock, CheckCircle, Check, Eye } from 'lucide-react';
+import { FileText, MapPin, QrCode, Clock, CheckCircle, Check, Eye, Paperclip, Download } from 'lucide-react';
 
 interface GuideListProps {
   guides: Guide[];
@@ -41,7 +42,11 @@ const GuideList: React.FC<GuideListProps> = ({ guides, onAcknowledge }) => {
                      guide.status === Status.DELIVERED ? 'Retirada' :
                      guide.status === Status.PROCESSING ? 'Em Confecção' : 'Aguardando'}
                   </span>
-                  {guide.status === Status.READY && <FileText className="w-5 h-5 text-gray-400 dark:text-military-300" />}
+                  {guide.attachmentUrl && (
+                      <span className="bg-gray-100 dark:bg-military-800 p-1.5 rounded-lg text-gray-500 dark:text-military-300" title="Possui anexo">
+                          <Paperclip className="w-4 h-4" />
+                      </span>
+                  )}
                 </div>
 
                 <h3 className="text-lg font-bold text-gray-800 dark:text-military-100 mb-1">{guide.specialty}</h3>
@@ -68,7 +73,22 @@ const GuideList: React.FC<GuideListProps> = ({ guides, onAcknowledge }) => {
               </div>
 
               {/* Action Footer */}
-              <div className="bg-gray-50 dark:bg-military-800 px-5 py-3 border-t border-gray-100 dark:border-military-700">
+              <div className="bg-gray-50 dark:bg-military-800 px-5 py-3 border-t border-gray-100 dark:border-military-700 space-y-2">
+                
+                {/* View Attachment Button */}
+                {guide.attachmentUrl && (
+                    <a 
+                        href={guide.attachmentUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="w-full bg-white dark:bg-military-700 hover:bg-gray-50 dark:hover:bg-military-600 text-blue-600 dark:text-blue-400 border border-gray-200 dark:border-military-600 py-2 rounded-lg text-sm font-medium transition-colors flex justify-center items-center gap-2"
+                    >
+                        <Download className="w-4 h-4" />
+                        Visualizar Documento
+                    </a>
+                )}
+
+                {/* Status/Acknowledge Button */}
                 {guide.status === Status.READY ? (
                   !guide.acknowledged ? (
                     <button 
@@ -79,7 +99,7 @@ const GuideList: React.FC<GuideListProps> = ({ guides, onAcknowledge }) => {
                       Confirmar Ciência
                     </button>
                   ) : (
-                    <div className="text-center">
+                    <div className="text-center pt-1">
                         <p className="text-gray-800 dark:text-military-100 font-semibold text-sm flex items-center justify-center gap-1 mb-1">
                             <Check className="w-4 h-4 text-emerald-500 dark:text-emerald-400" /> Ciente
                         </p>
@@ -89,7 +109,7 @@ const GuideList: React.FC<GuideListProps> = ({ guides, onAcknowledge }) => {
                     </div>
                   )
                 ) : guide.status === Status.DELIVERED ? (
-                    <div className="text-center text-sm text-gray-400 dark:text-military-500 py-2">
+                    <div className="text-center text-sm text-gray-400 dark:text-military-500 py-1">
                         Documento já retirado.
                     </div>
                 ) : (

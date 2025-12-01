@@ -24,7 +24,7 @@ export const DENTISTS_DATABASE = [
 ];
 
 // --- MAPPERS ---
-const mapExamFromDB = (e: any): Exam => ({
+export const mapExamFromDB = (e: any): Exam => ({
     id: e.id,
     name: e.name,
     dateRequested: e.date_requested,
@@ -35,7 +35,7 @@ const mapExamFromDB = (e: any): Exam => ({
     acknowledged: e.acknowledged
 });
 
-const mapGuideFromDB = (g: any): Guide => ({
+export const mapGuideFromDB = (g: any): Guide => ({
     id: g.id,
     specialty: g.specialty,
     doctor: g.doctor || 'N/A',
