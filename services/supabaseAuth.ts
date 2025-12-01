@@ -28,10 +28,9 @@ const mapGuideFromDB = (g: any): Guide => ({
 
 export const loginUser = async (credential: string, password: string) => {
   try {
-    // 1. Normalizar credenciais
     const emailInput = credential.trim().toLowerCase();
 
-    // 2. Fazer login no Supabase Auth
+    // 1. Fazer login no Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: emailInput,
       password: password,
@@ -55,17 +54,16 @@ export const loginUser = async (credential: string, password: string) => {
     const userId = authData.user.id;
     const userEmail = (authData.user.email || '').trim().toLowerCase();
 
-    // 3. Buscar o perfil do usuário
+    // 2. Buscar o perfil do usuário
     let { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
 
-    // --- LOGICA DE DETERMINAÇÃO DE ROLE (HIERARQUIA DE PODER) ---
-    // 1. Prioridade Máxima: Emails Hardcoded de Gestores
-    // Verifica tanto o email exato quanto padrões para flexibilidade
-    let finalRole: string = 'patient'; // Default seguro
+    // --- DETERMINAÇÃO DE ROLE ---
+    // Verifica roles administrativas hardcoded (Failsafe)
+    let finalRole: string = 'patient'; 
 
     const isExamManager = 
         userEmail === 'gestor.exames.v4@admin.com' || 
@@ -81,26 +79,22 @@ export const loginUser = async (credential: string, password: string) => {
         finalRole = 'exam_manager';
     } else if (isGuideManager) {
         finalRole = 'guide_manager';
-    } else if (profile && profile.role) {
-        // 2. Prioridade Média: Role vinda do Banco de Dados
+    } else if (profile?.role) {
         finalRole = profile.role;
     } else if (authData.user.user_metadata?.role) {
-        // 3. Prioridade Baixa: Metadados do Auth
         finalRole = authData.user.user_metadata.role;
     }
 
-    // --- FAILSAFE / RECUPERAÇÃO DE PERFIL ---
-    // Se não existir perfil no banco, cria um baseado na role determinada
+    // --- RECUPERAÇÃO DE PERFIL (Se não existir no banco) ---
     if (!profile) {
-         console.warn("Perfil ausente. Criando perfil temporário na memória e tentando salvar no banco.");
-         
+         console.warn("Perfil ausente. Tentando recuperar/criar com base no Auth.");
          const meta = authData.user.user_metadata || {};
          const newProfile = {
              id: userId,
              name: meta.name || userEmail.split('@')[0],
              email: userEmail,
              cpf: meta.cpf || '',
-             role: finalRole, // Usa a role calculada acima
+             role: finalRole,
              om: meta.om || 'CIA CMDO',
              type: meta.type || 'TITULAR',
              prec_cp: meta.precCp || '',
@@ -108,21 +102,24 @@ export const loginUser = async (credential: string, password: string) => {
              birth_date: meta.birthDate || null
          };
 
-         // Tenta persistir para corrigir logins futuros
-         await supabase.from('profiles').upsert(newProfile);
+         // Tenta salvar no banco (Upsert)
+         const { error: upsertError } = await supabase.from('profiles').upsert(newProfile);
+         
+         if (upsertError) {
+             console.error("Erro ao criar perfil de recuperação:", upsertError);
+             // Mesmo com erro, continuamos com o objeto em memória para não bloquear o acesso
+         }
          profile = newProfile;
     } else {
-        // Se o perfil existe, mas a role calculada (via email hardcoded) for diferente da do banco,
-        // atualizamos o objeto em memória para garantir o acesso correto AGORA.
-        if (profile.role !== finalRole) {
-            console.log(`Atualizando role em memória: ${profile.role} -> ${finalRole}`);
+        // Se a role calculada for diferente da do banco (ex: virou admin hardcoded), atualiza em memória
+        if (finalRole !== 'patient' && profile.role !== finalRole) {
             profile.role = finalRole;
         }
     }
 
-    console.log(`Login Sucesso: ${userEmail} -> Role Definida: ${finalRole}`);
-
-    // 4. RETORNAR DADOS BASEADOS NA ROLE FINAL
+    // 3. RETORNO DOS DADOS
+    
+    // Gestores
     if (finalRole === 'exam_manager' || finalRole === 'guide_manager') {
       return {
         success: true,
@@ -131,58 +128,57 @@ export const loginUser = async (credential: string, password: string) => {
           name: profile.name,
           role: finalRole as Role,
           cpf: profile.cpf,
-          email: userEmail, // FIX: Use userEmail from Auth, not profile.email
+          email: userEmail,
         } as User,
-        data: undefined, // Gestores não precisam carregar dados de paciente aqui
+        data: undefined,
       };
     }
 
-    // Fluxo Padrão (Paciente)
-    // Mesmo que finalRole seja desconhecido, tratamos como paciente para evitar crash
+    // Pacientes (Default)
     const { data: exams } = await supabase
-    .from('exams')
-    .select('*')
-    .eq('patient_id', profile.id)
-    .order('date_requested', { ascending: false });
+        .from('exams')
+        .select('*')
+        .eq('patient_id', profile.id)
+        .order('created_at', { ascending: false });
 
     const { data: guides } = await supabase
-    .from('guides')
-    .select('*')
-    .eq('patient_id', profile.id)
-    .order('date_requested', { ascending: false });
+        .from('guides')
+        .select('*')
+        .eq('patient_id', profile.id)
+        .order('created_at', { ascending: false });
 
     const { data: notifications } = await supabase
-    .from('notifications')
-    .select('*')
-    .eq('patient_id', profile.id)
-    .order('date', { ascending: false });
+        .from('notifications')
+        .select('*')
+        .eq('patient_id', profile.id)
+        .order('created_at', { ascending: false });
 
     return {
-    success: true,
-    user: {
-        id: profile.id,
-        name: profile.name,
-        role: 'patient' as Role, // Garante que o App receba 'patient' se caiu aqui
-        cpf: profile.cpf,
-        email: userEmail, // FIX: Use userEmail from Auth
-    } as User,
-    data: {
-        profile: {
+        success: true,
+        user: {
             id: profile.id,
             name: profile.name,
+            role: 'patient' as Role,
             cpf: profile.cpf,
             email: userEmail,
-            om: profile.om,
-            type: profile.type,
-            precCp: profile.prec_cp,
-            holderName: profile.holder_name,
-            birthDate: profile.birth_date,
-            role: 'patient' as Role
-        } as Patient,
-        exams: (exams || []).map(mapExamFromDB),
-        guides: (guides || []).map(mapGuideFromDB),
-        notifications: (notifications || []),
-    },
+        } as User,
+        data: {
+            profile: {
+                id: profile.id,
+                name: profile.name,
+                cpf: profile.cpf,
+                email: userEmail,
+                om: profile.om,
+                type: profile.type,
+                precCp: profile.prec_cp,
+                holderName: profile.holder_name,
+                birthDate: profile.birth_date,
+                role: 'patient' as Role
+            } as Patient,
+            exams: (exams || []).map(mapExamFromDB),
+            guides: (guides || []).map(mapGuideFromDB),
+            notifications: (notifications || []),
+        },
     };
 
   } catch (error: any) {
