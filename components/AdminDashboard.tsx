@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { getAllPatients, getPatientDetails, updateExamStatus, updateGuideStatus, addExamToPatient, addGuideToPatient, getLabExamsDatabase, getGuideProceduresDatabase, getGlobalAnnouncement, setGlobalAnnouncement, sendPatientNotification, registerPatient, deleteItem, editItem } from '../services/mockData';
 import { Status, Role, PatientType, MilitaryOrganization, Patient } from '../types';
-import { Search, User, Activity, FileText, Check, Truck, Clock, RefreshCw, Plus, X, ChevronRight, Users, ClipboardList, Paperclip, Megaphone, Send, MessageSquare, Trash2, Edit, Save, UserPlus } from 'lucide-react';
+import { Search, User, Activity, FileText, Check, Truck, Clock, RefreshCw, Plus, X, ChevronRight, Users, ClipboardList, Paperclip, Megaphone, Send, MessageSquare, Trash2, Edit, Save, UserPlus, Upload } from 'lucide-react';
 
 interface AdminDashboardProps {
   role: Role;
@@ -32,9 +32,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
   const [newItemName, setNewItemName] = useState('');
   const [newItemDoctor, setNewItemDoctor] = useState(''); 
   const [newItemDeadline, setNewItemDeadline] = useState('');
+  const [newItemFile, setNewItemFile] = useState<File | null>(null); // New file state for adding
 
   // Edit Item State
   const [editingItem, setEditingItem] = useState<{id: string, type: 'exam' | 'guide', data: any} | null>(null);
+
+  // Upload/Attach to Existing Item State
+  const [uploadingToItemId, setUploadingToItemId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Patient Registration State
   const [isRegisteringPatient, setIsRegisteringPatient] = useState(false);
@@ -87,7 +92,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
             'postgres_changes',
             { event: '*', schema: 'public', table: 'profiles' },
             (payload) => {
-                console.log('Realtime change in profiles:', payload);
                 refreshData();
             }
         )
@@ -95,7 +99,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
             'postgres_changes',
             { event: '*', schema: 'public', table: 'exams' },
             (payload) => {
-                console.log('Realtime change in exams:', payload);
                 refreshData();
             }
         )
@@ -103,7 +106,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
             'postgres_changes',
             { event: '*', schema: 'public', table: 'guides' },
             (payload) => {
-                console.log('Realtime change in guides:', payload);
                 refreshData();
             }
         )
@@ -137,6 +139,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
     // No manual refresh needed, Realtime will catch it
   };
 
+  const handleUploadFile = async (file: File) => {
+       const fileExt = file.name.split('.').pop();
+       const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+       const { data, error } = await supabase.storage
+            .from('guide-attachments')
+            .upload(fileName, file);
+        
+       if (error) {
+           console.error("Upload error:", error);
+           alert("Erro ao enviar arquivo.");
+           return null;
+       }
+
+       const { data: { publicUrl } } = supabase.storage.from('guide-attachments').getPublicUrl(fileName);
+       return publicUrl;
+  };
+
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPatientCpf) return;
@@ -144,13 +163,47 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
     if (role === 'exam_manager') {
       await addExamToPatient(selectedPatientCpf, newItemName, newItemDoctor);
     } else if (role === 'guide_manager') {
-      await addGuideToPatient(selectedPatientCpf, newItemName, newItemDoctor, newItemDeadline);
+      let attachmentUrl = undefined;
+      if (newItemFile) {
+          const url = await handleUploadFile(newItemFile);
+          if (url) attachmentUrl = url;
+          else return; // Stop if upload failed
+      }
+
+      await addGuideToPatient(selectedPatientCpf, newItemName, newItemDoctor, newItemDeadline, attachmentUrl);
     }
 
     setIsAdding(false);
     setNewItemName('');
     setNewItemDoctor('');
     setNewItemDeadline('');
+    setNewItemFile(null);
+  };
+
+  const handleAttachFileToExisting = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file || !uploadingToItemId || !selectedPatientCpf) return;
+
+      const url = await handleUploadFile(file);
+      if (url) {
+          // We assume it's a guide for now since exams don't use attachments in this logic
+          // But we could expand. Using 'guide' type here.
+          // We need to fetch the existing item to keep its other data? editItem handles partial updates well usually
+          // but our editItem needs full data currently. Let's find the item.
+          const guide = activePatientData.guides.find((g: any) => g.id === uploadingToItemId);
+          if (guide) {
+               await editItem(selectedPatientCpf, uploadingToItemId, 'guide', {
+                   specialty: guide.specialty,
+                   doctor: guide.doctor,
+                   deadline: guide.deadline,
+                   dateRequested: guide.dateRequested,
+                   attachmentUrl: url
+               });
+               alert("Arquivo anexado com sucesso!");
+          }
+      }
+      setUploadingToItemId(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleDeleteItem = async (id: string, type: 'exam' | 'guide') => {
@@ -233,6 +286,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 flex flex-col min-h-[calc(100vh-5rem)]">
       
+      {/* Hidden File Input for Attaching to Existing */}
+      <input 
+          type="file" 
+          ref={fileInputRef} 
+          className="hidden" 
+          accept="application/pdf,image/*" 
+          onChange={handleAttachFileToExisting}
+      />
+
       {/* Top Section: Stats & Global Announcement */}
       {!selectedPatientCpf && (
         <div className="space-y-6 animate-fade-in">
@@ -559,6 +621,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                                 />
                                             </div>
                                         )}
+                                        {role === 'guide_manager' && (
+                                            <div className="space-y-1 md:col-span-2">
+                                                <label className="text-xs font-semibold text-gray-500 dark:text-military-400 uppercase">Anexar Arquivo (Opcional)</label>
+                                                <div className="flex items-center gap-2">
+                                                    <input 
+                                                        type="file" 
+                                                        className="w-full text-sm text-gray-500 dark:text-military-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-100 dark:file:bg-military-800 file:text-gray-700 dark:file:text-military-200 hover:file:bg-gray-200 dark:hover:file:bg-military-700"
+                                                        accept="application/pdf,image/*"
+                                                        onChange={e => setNewItemFile(e.target.files?.[0] || null)}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="pt-2 flex justify-end">
                                         <button type="submit" className="bg-gray-800 dark:bg-military-700 hover:bg-gray-700 dark:hover:bg-military-600 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors">
@@ -673,6 +748,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                                     onViewAttachment={() => setViewingAttachment(guide.attachmentUrl || null)}
                                     onDelete={() => handleDeleteItem(guide.id, 'guide')}
                                     onEdit={() => handleStartEdit(guide, 'guide')}
+                                    onUpload={() => {
+                                        setUploadingToItemId(guide.id);
+                                        fileInputRef.current?.click();
+                                    }}
                                 />
                             ))}
                         </div>
@@ -822,7 +901,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ role }) => {
                       </button>
                   </div>
                   <div className="flex-1 overflow-auto p-4 bg-gray-50 dark:bg-military-950 flex justify-center">
-                      <img src={viewingAttachment} alt="Pedido Médico" className="max-w-full h-auto object-contain rounded shadow-lg" />
+                      {viewingAttachment.toLowerCase().includes('.pdf') ? (
+                          <iframe 
+                              src={viewingAttachment} 
+                              className="w-full h-[60vh] rounded shadow-lg"
+                              title="Visualização de PDF"
+                          />
+                      ) : (
+                          <img src={viewingAttachment} alt="Pedido Médico" className="max-w-full h-auto object-contain rounded shadow-lg" />
+                      )}
                   </div>
               </div>
           </div>
@@ -866,8 +953,9 @@ const ItemManager: React.FC<{
     attachmentUrl?: string,
     onViewAttachment?: () => void,
     onDelete: () => void,
-    onEdit: () => void
-}> = ({ name, status, type, meta, onStatusChange, attachmentUrl, onViewAttachment, onDelete, onEdit }) => {
+    onEdit: () => void,
+    onUpload?: () => void
+}> = ({ name, status, type, meta, onStatusChange, attachmentUrl, onViewAttachment, onDelete, onEdit, onUpload }) => {
     
     const getStatusColor = (s: Status) => {
         switch(s) {
@@ -942,6 +1030,15 @@ const ItemManager: React.FC<{
                 </div>
                 
                 <div className="flex items-center gap-1 pl-2 border-l border-gray-200 dark:border-military-700">
+                    {type === 'guide' && onUpload && (
+                        <button 
+                            onClick={onUpload}
+                            className="p-2 text-gray-400 dark:text-military-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                            title="Anexar/Alterar Arquivo (Guia Pronta)"
+                        >
+                            <Upload className="w-4 h-4" />
+                        </button>
+                    )}
                     <button 
                         onClick={onEdit}
                         className="p-2 text-gray-400 dark:text-military-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"

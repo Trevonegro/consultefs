@@ -314,7 +314,7 @@ export const addExamToPatient = async (cpf: string, examName: string, doctor: st
     });
 };
 
-export const addGuideToPatient = async (cpf: string, specialty: string, dateRegistered: string, deadline: string) => {
+export const addGuideToPatient = async (cpf: string, specialty: string, dateRegistered: string, deadline: string, attachmentUrl?: string) => {
     const { data: profile } = await supabase.from('profiles').select('id').eq('cpf', cpf).single();
     if (!profile) return null;
 
@@ -323,6 +323,7 @@ export const addGuideToPatient = async (cpf: string, specialty: string, dateRegi
         specialty,
         doctor: dateRegistered, 
         deadline,
+        attachment_url: attachmentUrl,
         status: Status.PENDING,
         date_requested: new Date().toISOString().split('T')[0]
     });
@@ -335,9 +336,14 @@ export const deleteItem = async (cpf: string, itemId: string, type: 'exam' | 'gu
 
 export const editItem = async (cpf: string, itemId: string, type: 'exam' | 'guide', data: any) => {
     const table = type === 'exam' ? 'exams' : 'guides';
-    const updateData = type === 'exam' 
+    const updateData: any = type === 'exam' 
         ? { name: data.name, doctor: data.doctor } 
         : { specialty: data.specialty, doctor: data.doctor, deadline: data.deadline, date_requested: data.dateRequested };
+    
+    // Add attachment if present for guides
+    if (type === 'guide' && data.attachmentUrl) {
+        updateData.attachment_url = data.attachmentUrl;
+    }
     
     await supabase.from(table).update(updateData).eq('id', itemId);
 };

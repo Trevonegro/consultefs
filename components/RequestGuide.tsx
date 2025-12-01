@@ -21,11 +21,15 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
-      };
-      reader.readAsDataURL(selectedFile);
+      if (selectedFile.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setPreviewUrl(reader.result as string);
+        };
+        reader.readAsDataURL(selectedFile);
+      } else {
+          setPreviewUrl(null); // No preview for PDF
+      }
     }
   };
 
@@ -34,11 +38,15 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
     const selectedFile = e.dataTransfer.files?.[0];
     if (selectedFile) {
         setFile(selectedFile);
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setPreviewUrl(reader.result as string);
-        };
-        reader.readAsDataURL(selectedFile);
+        if (selectedFile.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              setPreviewUrl(reader.result as string);
+            };
+            reader.readAsDataURL(selectedFile);
+        } else {
+            setPreviewUrl(null);
+        }
     }
   };
 
@@ -54,7 +62,7 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
     e.preventDefault();
     
     if (!file || !specialty || !doctor) {
-        alert("Por favor, preencha todos os campos e anexe a foto do pedido.");
+        alert("Por favor, preencha todos os campos e anexe a foto ou PDF do pedido.");
         return;
     }
 
@@ -62,7 +70,8 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
 
     try {
         // Upload file to Supabase Storage
-        const fileName = `${Date.now()}_${file.name.replace(/\s/g, '')}`;
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
         const { data, error } = await supabase.storage
             .from('guide-attachments')
             .upload(fileName, file);
@@ -85,7 +94,7 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
         setPreviewUrl(null);
     } catch (error) {
         console.error(error);
-        alert("Erro ao enviar imagem. Tente novamente.");
+        alert("Erro ao enviar arquivo. Tente novamente.");
     } finally {
         setIsSubmitting(false);
     }
@@ -121,7 +130,7 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
                 Solicitar Guia Médica
             </h2>
             <p className="text-gray-500 dark:text-military-400 mt-1">
-                Preencha os dados e anexe uma foto legível do seu pedido médico (receituário).
+                Preencha os dados e anexe uma foto ou PDF do seu pedido médico (receituário).
             </p>
         </div>
 
@@ -152,9 +161,9 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
             </div>
 
             <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-600 dark:text-military-400">Foto do Pedido Médico</label>
+                <label className="text-sm font-semibold text-gray-600 dark:text-military-400">Foto ou PDF do Pedido Médico</label>
                 
-                {!previewUrl ? (
+                {!file ? (
                     <div 
                         onDragOver={(e) => e.preventDefault()}
                         onDrop={handleDrop}
@@ -165,21 +174,25 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
                             type="file" 
                             ref={fileInputRef} 
                             className="hidden" 
-                            accept="image/*"
+                            accept="image/*,application/pdf"
                             onChange={handleFileChange}
                         />
                         <div className="bg-red-50 dark:bg-red-900/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-red-100 dark:group-hover:bg-red-900/40 transition-colors">
                             <Upload className="w-8 h-8 text-red-600 dark:text-red-400" />
                         </div>
-                        <p className="font-medium text-gray-600 dark:text-military-300">Clique para enviar ou arraste a foto aqui</p>
-                        <p className="text-sm text-gray-400 dark:text-military-500 mt-1">Formatos aceitos: JPG, PNG (Max 5MB)</p>
+                        <p className="font-medium text-gray-600 dark:text-military-300">Clique para enviar ou arraste o arquivo aqui</p>
+                        <p className="text-sm text-gray-400 dark:text-military-500 mt-1">Formatos aceitos: PDF, JPG, PNG (Max 5MB)</p>
                     </div>
                 ) : (
                     <div className="relative border border-gray-200 dark:border-military-600 rounded-xl overflow-hidden bg-gray-50 dark:bg-military-800">
                          <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-military-600 bg-white dark:bg-military-900">
                             <div className="flex items-center gap-2">
-                                <ImageIcon className="w-4 h-4 text-gray-500 dark:text-military-400" />
-                                <span className="text-sm font-medium text-gray-700 dark:text-military-200 truncate max-w-[200px]">{file?.name}</span>
+                                {file.type === 'application/pdf' ? (
+                                    <FileText className="w-4 h-4 text-red-500" />
+                                ) : (
+                                    <ImageIcon className="w-4 h-4 text-gray-500 dark:text-military-400" />
+                                )}
+                                <span className="text-sm font-medium text-gray-700 dark:text-military-200 truncate max-w-[200px]">{file.name}</span>
                             </div>
                             <button 
                                 type="button" 
@@ -190,7 +203,14 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
                             </button>
                          </div>
                          <div className="p-4 flex justify-center">
-                            <img src={previewUrl} alt="Preview" className="max-h-64 rounded-lg shadow-sm" />
+                            {previewUrl ? (
+                                <img src={previewUrl} alt="Preview" className="max-h-64 rounded-lg shadow-sm" />
+                            ) : (
+                                <div className="text-center py-8 text-gray-500 dark:text-military-400 flex flex-col items-center">
+                                    <FileText className="w-12 h-12 mb-2 text-gray-300 dark:text-military-600" />
+                                    <span>Pré-visualização de PDF não disponível</span>
+                                </div>
+                            )}
                          </div>
                     </div>
                 )}
@@ -199,7 +219,7 @@ const RequestGuide: React.FC<RequestGuideProps> = ({ onSubmit }) => {
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/30 p-4 rounded-xl flex gap-3">
                 <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                    Certifique-se de que a foto está nítida e mostra todas as informações do pedido (data, assinatura e carimbo do médico).
+                    Certifique-se de que a foto ou arquivo está legível e mostra todas as informações do pedido (data, assinatura e carimbo do médico).
                 </p>
             </div>
 
